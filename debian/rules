@@ -67,9 +67,9 @@ binary-indep: build install
 #   dh_installpam
 #   dh_installmime
 #   dh_python
-#   dh_installinit
 #   dh_installcron
 #   dh_installinfo
+	dh_installinit --onlyscripts --init-script=awesant-agent
 	dh_installman
 	dh_link
 	dh_strip
