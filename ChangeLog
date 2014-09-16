@@ -2,6 +2,7 @@ awesant (0.14) released at 2014-XX-XX
 
     * Added parameter 'grep' for Input/File.pm to skip events that
       does not match.
+    * Added the possibility to include files by pattern.
 
 awesant (0.13) released at 2014-01-17
 

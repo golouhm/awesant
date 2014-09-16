@@ -116,6 +116,7 @@ sub parse {
     # used to include further configuration files.
     my $path = $file;
     $path =~ s![^/\\]+$!!;
+    $path =~ s![/\\]$!!;
 
     # Create the object.
     my $self = bless { path => $path }, $class;
@@ -133,12 +134,30 @@ sub _include_config {
     my ($self, $file, $config, $enc) = @_;
     my $d = $enc ? "<:$enc" : "<";
 
+    if (-d $file) {
+        $self->_include_dir($file, $config, $enc);
+        return;
+    }
+
     open my $fh, $d, $file
         or die "Unable to open file '$file' for reading - $!";
 
     $self->_parse_config($fh, $config);
 
     close $fh;
+}
+
+sub _include_dir {
+    my ($self, $dir, $config, $enc) = @_;
+
+    opendir my $dh, $dir
+        or die "Unable to open dir '$dir' for reading - $!";
+
+    while (my $file = readdir $dh) {
+        if (-f "$dir/$file" && $file =~ /.+.conf\z/) {
+            $self->_include_config("$dir/$file", $config, $enc);
+        }
+    }
 }
 
 sub _parse_config {
