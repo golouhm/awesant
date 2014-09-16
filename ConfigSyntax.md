@@ -94,4 +94,4 @@ Relative paths are possible too. The base path is the path to the main configura
         include conf.d
     }
 
-That would load all configuration files that ends with .conf.
+'include conf.d' - that would load all configuration files that ends with .conf.
