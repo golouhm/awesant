@@ -280,3 +280,7 @@ or on any host to transfer the logs to redis.
         }
     }
 
+# TODO
+
+Rewrite Agent.pm! Too long methods... and improve the code.
+
