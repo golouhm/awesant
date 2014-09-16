@@ -20,6 +20,10 @@ Currently supported outputs:
 * Screen: <https://github.com/bloonix/awesant/blob/master/OutputScreenOptions.md>
 * Socket: <https://github.com/bloonix/awesant/blob/master/OutputSocketOptions.md>
 
+Configuration syntax:
+
+<https://github.com/bloonix/awesant/blob/master/ConfigSyntax.md>
+
 ## Pre-installation
 
 Awesant is written in Perl. So you have to install some Perl packages at first
