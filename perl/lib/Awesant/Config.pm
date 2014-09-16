@@ -85,6 +85,27 @@ It's possible to include configuration files.
     include /etc/myapp/another-config.conf
     param3 value
 
+Or include directories.
+
+    foo {
+        include /etc/myapp/conf.d
+    }
+
+Relative paths are possible too. The base path is the path to the main configuration file.
+
+    /etc/myapp/main.conf    # the first loaded configuration file
+    /etc/myapp/foo.conf
+    /etc/myapp/foo/bar.conf
+    /etc/myapp/conf.d/
+
+    section {
+        include foo.conf
+        include foo/bar.conf
+        include conf.d
+    }
+
+That would load all configuration files that ends with .conf.
+
 =head1 FUNCTIONS
 
 =head2 C<parse>

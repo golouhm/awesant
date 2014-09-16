@@ -31,11 +31,7 @@ Define regexes to skip events.
         }
     }
 
-Events that match the regexes will be skipped.
-
-### grep
-
-This is the opposite of option 'skip'. Events that does not match the regexes will be skipped.
+Lines that match the regexes will be skipped.
 
 ### save_position
 
