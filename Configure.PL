@@ -20,6 +20,7 @@ my $o_perl_prefix      = "/usr/local";
 my $o_perl_destdir     = "";
 my $o_perl_installdirs = "site";
 my $o_without_perl     = 0;
+my $o_build_package    = 0;
 my $o_help             = 0;
 
 GetOptions(
@@ -32,7 +33,8 @@ GetOptions(
     "perl-destdir=s"     => \$o_perl_destdir,
     "perl-installdirs=s" => \$o_perl_installdirs,
     "without-perl"       => \$o_without_perl,
-    "h|help"             => \$o_help,
+    "build-package"      => \$o_build_package,
+    "h|help"             => \$o_help
 );
 
 if ($o_help) {
@@ -74,8 +76,7 @@ PERL=$o_perl
 PERL_INSTALLDIRS=$o_perl_installdirs
 PERL_DESTDIR=\$(DESTDIR)
 WITHOUT_PERL=$o_without_perl
-CVERSION=$cversion
-MVERSION=$mversion
+BUILDPKG=$o_build_package
 EOF
 
 close $fh;

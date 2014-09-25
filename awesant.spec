@@ -1,6 +1,6 @@
 Summary: Awesant is a log shipper for logstash.
 Name: awesant
-Version: 0.13
+Version: 0.14
 Release: 1%{?dist}
 License: distributable
 Group: System Environment/Daemons
@@ -15,16 +15,17 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-%(%{__id_u} -n)
 
 Source0: http://download.bloonix.de/sources/%{name}-%{version}.tar.gz
 Requires: perl
-Requires: perl(Log::Handler)
-Requires: perl(Params::Validate)
+Requires: perl(Class::Accessor)
 Requires: perl(IO::Socket)
 Requires: perl(IO::Select)
 Requires: perl(JSON)
+Requires: perl(Log::Handler)
+Requires: perl(Params::Validate)
 Requires: perl(Sys::Hostname)
 Requires: perl(Time::HiRes)
-Requires: perl(Class::Accessor::Fast)
 AutoReqProv: no
 
+%define with_systemd 0
 %define initdir %{_sysconfdir}/rc.d/init.d
 %define confdir %{_sysconfdir}/awesant
 %define logrdir %{_sysconfdir}/logrotate.d
@@ -39,11 +40,11 @@ Awesant is a log shipper for logstash.
 %setup -q -n %{name}-%{version}
 
 %build
-%{__perl} Configure.PL --prefix /usr --initdir %{initdir} --without-perl
+%{__perl} Configure.PL --prefix /usr --initdir %{initdir} --without-perl --build-package
 %{__make}
 cd perl;
-%{__perl} Build.PL --installdirs vendor --destdir %{buildroot}
-./Build
+%{__perl} Build.PL installdirs=vendor
+%{__perl} Build
 
 %install
 rm -rf %{buildroot}
@@ -53,8 +54,14 @@ mkdir -p %{buildroot}%{logdir}
 install -D -m 644 etc/defaults/awesant-agent %{buildroot}%{defaults}/awesant-agent
 install -D -m 644 etc/logrotate.d/awesant %{buildroot}%{logrdir}/awesant
 
+%if %{?with_systemd}
+install -p -D -m 0644 etc/systemd/awesant-agent.service %{buildroot}%{_unitdir}/awesant-agent.service
+%else
+install -p -D -m 0755 etc/init.d/awesant-agent %{buildroot}%{initdir}/awesant-agent
+%endif
+
 cd perl;
-./Build pure_install
+%{__perl} Build install destdir=%{buildroot} create_packlist=0
 find %{buildroot} -name .packlist -exec %{__rm} {} \;
 
 %post
@@ -66,7 +73,6 @@ rm -rf %{buildroot}
 %files
 %defattr(-,root,root)
 
-%{initdir}/awesant-agent
 %{_bindir}/awesant
 %{_bindir}/awesant-create-cert
 
@@ -77,6 +83,12 @@ rm -rf %{buildroot}
 %config(noreplace) %attr(0640, root, root) %{logrdir}/awesant
 %config(noreplace) %attr(0640, root, root) %{defaults}/awesant-agent
 
+%if %{?with_systemd}
+%{_unitdir}/awesant-agent.service
+%else
+%{initdir}/awesant-agent
+%endif
+
 %dir %{perl_vendorlib}/Awesant/
 %dir %{perl_vendorlib}/Awesant/Input
 %dir %{perl_vendorlib}/Awesant/Output
@@ -86,6 +98,12 @@ rm -rf %{buildroot}
 %{_mandir}/man?/Awesant::*
 
 %changelog
+* Thu Sep 25 2014 Jonny Schulz <js@bloonix.de> - 0.14-1
+- Added parameter 'grep' for Input/File.pm to skip events that
+  does not match.
+- Added the possibility to include files by pattern.
+- Added awesant-agent.service for systemd.
+- HangUp.pm is now used to fork awesant into the background.
 * Fri Jan 17 2014 Jonny Schulz <js@bloonix.de> - 0.13-1
 - Awesant is ready for the new logstash json schema.
 - oldlogstashjson is now set to 'no' by default.
@@ -111,7 +129,7 @@ rm -rf %{buildroot}
   only one input exists that has workers configured.
 * Fri Apr 19 2013 Jonny Schulz <js@bloonix.de> - 0.9-1
 - Fixed: add_field does not work if format is set to json_event.
-* Sun Apr 15 2013 Jonny Schulz <js@bloonix.de> - 0.8-1
+* Mon Apr 15 2013 Jonny Schulz <js@bloonix.de> - 0.8-1
 - A lot of bug fixes and features implemented.
 * Sun Feb 03 2013 Jonny Schulz <js@bloonix.net> - 0.7-1
 - Some readability improvements.
@@ -123,7 +141,7 @@ rm -rf %{buildroot}
 - Added the new parameter 'format' for incoming messages.
 - Added a input for tcp sockets.
 - Now process groups are created for inputs that have the parameter 'workers' configured.
-* Sun Nov 15 2012 Jonny Schulz <js@bloonix.net> - 0.4-1
+* Thu Nov 15 2012 Jonny Schulz <js@bloonix.net> - 0.4-1
 - Implemented a extended add_field feature.
 * Sun Nov 11 2012 Jonny Schulz <js@bloonix.net> - 0.3-1
 - Fixed timestamp formatting.

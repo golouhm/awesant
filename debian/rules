@@ -10,7 +10,8 @@
 export DH_VERBOSE=1
 
 PERL ?= /usr/bin/perl
-BUILDROOT = $(CURDIR)/debian/awesant
+BUILDROOT=$(CURDIR)/debian/awesant
+WITH_SYSTEMD=0
 
 configure: configure-stamp
 configure-stamp:
@@ -22,7 +23,7 @@ build: build-stamp
 build-stamp: configure-stamp
 	dh_testdir
 
-	$(PERL) Configure.PL --prefix /usr --without-perl
+	$(PERL) Configure.PL --prefix /usr --without-perl --build-package
 	$(MAKE)
 
 	cd perl && $(PERL) Build.PL installdirs=vendor
@@ -49,6 +50,12 @@ install: build
 	$(MAKE) install DESTDIR=$(BUILDROOT)
 	install -d -m 0755 $(BUILDROOT)/etc/logrotate.d
 	cp etc/logrotate.d/awesant $(BUILDROOT)/etc/logrotate.d/awesant
+
+	if test "$(WITH_SYSTEMD)" -eq 1 ; then \
+		install -p -D -m 0644 etc/systemd/awesant-agent.service $(BUILDROOT)/usr/lib/systemd/system/awesant-agent; \
+	else \
+		install -p -D -m 0755 etc/init.d/awesant-agent $(BUILDROOT)/etc/init.d/awesant-agent; \
+	fi;
 
 	cd perl && $(PERL) Build install destdir=$(BUILDROOT) create_packlist=0
 

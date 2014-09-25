@@ -1,3 +1,13 @@
+awesant (0.14-1) unstable; urgency=low
+
+    * Added parameter 'grep' for Input/File.pm to skip events that
+      does not match.
+    * Added the possibility to include files by pattern.
+    * Added awesant-agent.service for systemd.
+    * HangUp.pm is now used to fork awesant into the background.
+
+ -- Jonny Schulz <js@bloonix.de>  Thu, 25 Sep 2014 10:00:00 +0100
+
 awesant (0.13-1) unstable; urgency=low
 
     * Awesant is ready for the new logstash json schema.

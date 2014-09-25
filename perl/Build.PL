@@ -21,7 +21,6 @@ my $build = Module::Build->new(
         "Params::Validate" => 0,
         "POSIX"            => 0,
         "Sys::Hostname"    => 0,
-        "Test::More"       => 0,
         "JSON"             => 0,
     },
 );

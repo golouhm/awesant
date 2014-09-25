@@ -12,17 +12,17 @@
 ### END INIT INFO
 
 BASENAME=$(basename $0)
-CONFIG=@@CONFIG@@
+CONFIG=@@CONFDIR@@/awesant/agent.conf
 RUNDIR=@@RUNDIR@@
-PIDFILE=$RUNDIR/agent.pid
-DAEMON=@@DAEMON@@
+PIDFILE=$RUNDIR/awesant/agent.pid
+DAEMON=@@PREFIX@@/bin/awesant
 OS=$(uname)
 
 [ -f /etc/sysconfig/$BASENAME ] && . /etc/sysconfig/$BASENAME
 [ -f /etc/default/$BASENAME ] && . /etc/default/$BASENAME
 
-if test ! -d "$RUNDIR" ; then
-    mkdir -p $RUNDIR
+if test ! -d "$RUNDIR/awesant" ; then
+    mkdir -p $RUNDIR/awesant
 fi
 
 __check_awesant_agent() {

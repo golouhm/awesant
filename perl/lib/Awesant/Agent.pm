@@ -127,12 +127,6 @@ A handler to reap children.
 
 Load the configuration from a file.
 
-=head2 write_pidfile
-
-Writes the PID file.
-
-=head2 remove_pidfile
-
 Removes the PID file.
 
 =head2 create_logger
@@ -190,6 +184,7 @@ use POSIX qw(:sys_wait_h);
 use Sys::Hostname;
 use Time::HiRes qw();
 use Awesant::Config;
+use Awesant::HangUp;
 use base qw(Class::Accessor::Fast);
 
 # On Windows fork() is not really available.
@@ -211,29 +206,32 @@ sub run {
     my ($class, %args) = @_;
 
     my $self = bless {
-        args     => \%args, # the command line arguments
-        done     => 0,      # a flag to stop the daemon on some signals
-        child    => { },    # store the pids of each child
-        reaped   => { },    # store the pids of each child that was reaped
-        inputs   => [ ],    # store the inputs as process groups
-        outputs  => { },    # store the outputs in a hash ref by type
-        watch    => 0,      # store the files to watch for each process group
-        filed    => 0,      # store the files already watched for each process group
-        json     => JSON->new->utf8(),
+        args    => \%args, # the command line arguments
+        done    => 0,      # a flag to stop the daemon on some signals
+        child   => { },    # store the pids of each child
+        reaped  => { },    # store the pids of each child that was reaped
+        inputs  => [ ],    # store the inputs as process groups
+        outputs => { },    # store the outputs in a hash ref by type
+        watch   => 0,      # store the files to watch for each process group
+        filed   => 0,      # store the files already watched for each process group
+        json    => JSON->new->utf8()
     }, $class;
 
     # Store all input types. This is necessary to
     # bind wildcard outputs to all input types.
     $self->{input_types} = { };
 
-    # The main workflow.
-    $self->write_pidfile;
+    # Parse the configuration
     $self->get_config;
+
+    # Type=forking
+    Awesant::HangUp->now(pid_file => $self->{args}->{pidfile});
+
+    # Run Awesant
     $self->create_logger;
     $self->load_input;
     $self->load_output;
     $self->daemonize;
-    $self->remove_pidfile;
 }
 
 sub load_output {
@@ -835,24 +833,6 @@ sub get_config {
     );
 
     $self->{config} = $self->validate_config($config);
-}
-
-sub write_pidfile {
-    my $self = shift;                                                                                                               
-    open my $fh, ">", $self->{args}->{pidfile}
-        or die "unable to write pid file $self->{args}->{pidfile}: $!";
-    print $fh $$;
-    close $fh;
-}
-
-sub remove_pidfile {
-    my $self = shift;
-
-    if (-f $self->{args}->{pidfile}) {
-        unlink($self->{args}->{pidfile});
-        # "or die" is not necessaray because
-        # awesant stop running
-    }
 }
 
 sub create_logger {

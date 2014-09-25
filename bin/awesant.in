@@ -4,10 +4,10 @@ use warnings;
 use Awesant::Agent;
 use Getopt::Long qw(:config no_ignore_case);
 
-my $version   = "0.1";
+my $version   = $Awesant::Agent::VERSION;
 my $progname  = do { $0 =~ m!([^/]+)\z!; $1 };
-my $o_config  = "@@CONFIG@@";
-my $o_pidfile = "@@PIDFILE@@";
+my $o_config  = "@@CONFDIR@@/awesant/agent.conf";
+my $o_pidfile = "@@RUNDIR@@/awesant/agent.pid";
 my $o_help    = 0;
 my $o_version = 0;
 
@@ -23,9 +23,9 @@ if ($o_help) {
     print "Options:\n\n";
     print "-c, --config <file>\n";
     print "    The path to the agent configuration.\n";
-    print "    Default: @@CONFIG@@\n";
+    print "    Default: @@CONFDIR@@/awesant/agent.conf\n";
     print "-p, --pidfile <pidfile>\n";
-    print "    Default: @@PIDFILE@@\n";
+    print "    Default: @@RUNDIR@@/awesant/agent.pid\n";
     print "    The path to the pid file.\n";
     print "-h, --help\n";
     print "    Print the help.\n";
@@ -37,6 +37,10 @@ if ($o_help) {
 if ($o_version) {
     print "$progname v$version\n";
     exit 0;
+}
+
+if (!-d "@@RUNDIR@@/awesant") {
+    system("mkdir -p @@RUNDIR@@/awesant");
 }
 
 Awesant::Agent->run(config => $o_config, pidfile=> $o_pidfile);

@@ -1,8 +1,10 @@
-awesant (0.14) released at 2014-XX-XX
+awesant (0.14) released at 2014-09-25
 
     * Added parameter 'grep' for Input/File.pm to skip events that
       does not match.
     * Added the possibility to include files by pattern.
+    * Added awesant-agent.service for systemd.
+    * HangUp.pm is now used to fork awesant into the background.
 
 awesant (0.13) released at 2014-01-17
 
