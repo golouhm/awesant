@@ -1,0 +1,16 @@
+[Unit]
+Description=Awesant Logstash Shipper
+After=network.target
+
+[Service]
+Type=forking
+PIDFile=@@RUNDIR@@/awesant/agent.pid
+ExecStart=@@PREFIX@@/bin/awesant --config "@@CONFDIR@@/awesant/agent.conf" --pidfile @@RUNDIR@@/awesant/agent.pid
+ExecReload=/bin/kill -1 $MAINPID
+ExecStop=/bin/kill -15 $MAINPID
+PrivateTmp=true
+TimeoutStartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
