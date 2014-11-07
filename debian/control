@@ -18,7 +18,7 @@ Homepage: http://www.bloonix.de/
 
 Package: awesant
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, libparams-validate-perl, liblog-handler-perl (>= 0.75~), libjson-perl, libclass-accessor-perl, libsys-hostname-long-perl
+Depends: ${shlibs:Depends}, ${misc:Depends}, libparams-validate-perl, liblog-handler-perl (>= 0.75~), libjson-perl, libjson-xs-perl, libclass-accessor-perl, libsys-hostname-long-perl
 Suggests: libio-socket-ssl-perl
 Description: awesant-agent
  Awesant is a log shipper for logstash.

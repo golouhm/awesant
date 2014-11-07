@@ -23,6 +23,7 @@ Requires: perl(Log::Handler)
 Requires: perl(Params::Validate)
 Requires: perl(Sys::Hostname)
 Requires: perl(Time::HiRes)
+Requires: perl-JSON-XS
 AutoReqProv: no
 
 %define with_systemd 0

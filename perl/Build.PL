@@ -22,6 +22,7 @@ my $build = Module::Build->new(
         "POSIX"            => 0,
         "Sys::Hostname"    => 0,
         "JSON"             => 0,
+        "JSON::XS"         => 0
     },
 );
 
