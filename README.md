@@ -36,7 +36,7 @@ to run Awesant on your machine. Let us have a look at what you need to install:
     IO::Select
     Sys::Hostname
     Time::HiRes
-    JSON
+    JSON  (please install the JSON-XS Perl module for a better performance)
 
 If you want to transport logs via SSL and the Socket output then you need to install IO::Socket::SSL.
 
