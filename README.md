@@ -76,7 +76,10 @@ Or create a deb-package with
 
 You can install Awesant from the Bloonix repository if you like.
 The packages are available for Debian and CentOS like distributions.
-Just look into the INSTALL files on http://download.bloonix.de/.
+
+You can find the repositories here:
+
+https://bloonix.org/de/docs/installation/repositories.html
 
 ## HowTo
 
