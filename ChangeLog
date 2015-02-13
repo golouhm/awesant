@@ -1,6 +1,7 @@
 awesant (0.16) released at 2015-02-13
 
     * Startup failures are now logged into the logfile of awesant.
+    * A log file is created now by default instead to log to stdout.
 
 awesant (0.15) released at 2015-02-13
 
