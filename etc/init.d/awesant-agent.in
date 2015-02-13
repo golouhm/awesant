@@ -14,6 +14,7 @@
 BASENAME=$(basename $0)
 CONFIG=@@CONFDIR@@/awesant/agent.conf
 RUNDIR=@@RUNDIR@@
+LIBDIR=@@LIBDIR@@
 PIDFILE=$RUNDIR/awesant/agent.pid
 DAEMON=@@PREFIX@@/bin/awesant
 OS=$(uname)
@@ -23,6 +24,9 @@ OS=$(uname)
 
 if test ! -d "$RUNDIR/awesant" ; then
     mkdir -p $RUNDIR/awesant
+fi
+if test ! -d "$LIBDIR/awesant" ; then
+    mkdir -p $LIBDIR/awesant
 fi
 
 __check_awesant_agent() {

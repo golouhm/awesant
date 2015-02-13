@@ -15,6 +15,7 @@ my $o_confdir          = "/etc";
 my $o_initdir          = "/etc/init.d";
 my $o_logdir           = "/var/log";
 my $o_rundir           = "/var/run";
+my $o_libdir           = "/var/lib";
 my $o_perl             = "/usr/bin/perl";
 my $o_perl_prefix      = "/usr/local";
 my $o_perl_destdir     = "";
@@ -28,6 +29,7 @@ GetOptions(
     "confdir=s"          => \$o_confdir,
     "initdir=s"          => \$o_initdir,
     "logdir=s"           => \$o_logdir,
+    "libdir=s"           => \$o_logdir,
     "rundir=s"           => \$o_rundir,
     "perl=s"             => \$o_perl,
     "perl-destdir=s"     => \$o_perl_destdir,
@@ -72,6 +74,7 @@ CONFDIR=\$(DESTDIR)$o_confdir
 INITDIR=\$(DESTDIR)$o_initdir
 LOGDIR=\$(DESTDIR)$o_logdir
 RUNDIR=\$(DESTDIR)$o_rundir
+LIBDIR=\$(DESTDIR)$o_libdir
 PERL=$o_perl
 PERL_INSTALLDIRS=$o_perl_installdirs
 PERL_DESTDIR=\$(DESTDIR)

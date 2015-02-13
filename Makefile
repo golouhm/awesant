@@ -20,6 +20,7 @@ build:
 		sed -i "s!@@PREFIX@@!$(PREFIX)!g" $$file; \
 		sed -i "s!@@CONFDIR@@!$(CONFDIR)!g" $$file; \
 		sed -i "s!@@RUNDIR@@!$(RUNDIR)!g" $$file; \
+		sed -i "s!@@LIBDIR@@!$(LIBDIR)!g" $$file; \
 	done;
 
 	if test "$(WITHOUT_PERL)" = "0" ; then \
