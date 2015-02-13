@@ -1,6 +1,6 @@
 Summary: Awesant is a log shipper for logstash.
 Name: awesant
-Version: 0.17
+Version: 0.18
 Release: 1%{?dist}
 License: distributable
 Group: System Environment/Daemons
@@ -99,6 +99,8 @@ rm -rf %{buildroot}
 %{_mandir}/man?/Awesant::*
 
 %changelog
+* Fri Feb 13 2015 Jonny Schulz <js@bloonix.de> - 0.18-1
+- Fixed creation of /var/lib/awesant.
 * Fri Feb 13 2015 Jonny Schulz <js@bloonix.de> - 0.17-1
 - Fixed file name generation of the pos file in Input/File.pm.
 * Fri Feb 13 2015 Jonny Schulz <js@bloonix.de> - 0.16-1

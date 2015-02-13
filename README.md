@@ -58,7 +58,7 @@ Just download the project and execute
 
 Or create an RPM with
 
-    VERSION=0.15
+    VERSION=0.18
     git clone https://github.com/bloonix/awesant.git -b v$VERSION awesant-$VERSION
     tar -czf awesant-$VERSION.tar.gz awesant-$VERSION
     rpmbuild -ta awesant-$VERSION.tar.gz
@@ -66,7 +66,7 @@ Or create an RPM with
 
 Or create a deb-package with
 
-    VERSION=v0.15
+    VERSION=v0.18
     git clone https://github.com/bloonix/awesant.git
     cd awesant
     git checkout $VERSION
