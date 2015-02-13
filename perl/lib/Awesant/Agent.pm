@@ -200,7 +200,7 @@ use constant PARENT_PID => $$;
 # Just some simple accessors
 __PACKAGE__->mk_accessors(qw/config log json watch filed inputs outputs/);
 
-our $VERSION = "0.14";
+our $VERSION = "0.15";
 
 sub run {
     my ($class, %args) = @_;
@@ -224,8 +224,13 @@ sub run {
     # Parse the configuration
     $self->get_config;
 
-    # Type=forking
-    Awesant::HangUp->now(pid_file => $self->{args}->{pidfile});
+    # Check if screen output is defined.
+    my $output_config = $self->config->{output};
+    if ($output_config->{screen}) {
+        Awesant::HangUp->now(pid_file => $self->{args}->{pidfile}, dev_null => 0);
+    } else {
+        Awesant::HangUp->now(pid_file => $self->{args}->{pidfile}, dev_null => 1);
+    }
 
     # Run Awesant
     $self->create_logger;

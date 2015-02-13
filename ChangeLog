@@ -1,3 +1,8 @@
+awesant (0.15) released at 2015-02-13
+
+    * Fixed file name of pos file in /var/lib/awesant.
+    * Fixed screen output.
+
 awesant (0.14) released at 2014-09-25
 
     * Added parameter 'grep' for Input/File.pm to skip events that

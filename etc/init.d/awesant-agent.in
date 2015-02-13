@@ -41,7 +41,7 @@ __check_awesant_agent() {
 __start() {
     echo -n "Starting ${BASENAME}: "
     if test -z "$DAEMON_EXIST" ; then
-        $DAEMON --config "$CONFIG" --pidfile "$PIDFILE" 1>/dev/null 2>&1 &
+        $DAEMON --config "$CONFIG" --pidfile "$PIDFILE" &
 
         for i in {1..3} ; do
             __check_awesant_agent
