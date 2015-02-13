@@ -200,7 +200,7 @@ use constant PARENT_PID => $$;
 # Just some simple accessors
 __PACKAGE__->mk_accessors(qw/config log json watch filed inputs outputs/);
 
-our $VERSION = "0.15";
+our $VERSION = "0.16";
 
 sub run {
     my ($class, %args) = @_;
@@ -223,6 +223,7 @@ sub run {
 
     # Parse the configuration
     $self->get_config;
+    $self->create_logger;
 
     # Check if screen output is defined.
     my $output_config = $self->config->{output};
@@ -233,7 +234,6 @@ sub run {
     }
 
     # Run Awesant
-    $self->create_logger;
     $self->load_input;
     $self->load_output;
     $self->daemonize;
@@ -415,10 +415,6 @@ sub load_module {
 
 sub daemonize {
     my $self = shift;
-
-    # For debugging.
-    $SIG{__DIE__}  = sub { $self->log->trace(error   => @_) };
-    $SIG{__WARN__} = sub { $self->log->trace(warning => @_) };
 
     # Ignoring sig hup and pipe by default, because we have no
     # reload mechanism and don't want to break on pipe signals.
@@ -848,6 +844,10 @@ sub create_logger {
     if ($self->config->{logger}) {
         $self->{log}->config(config => $self->config->{logger});
     }
+
+    # For debugging.
+    $SIG{__DIE__}  = sub { $self->log->trace(error   => @_) };
+    $SIG{__WARN__} = sub { $self->log->trace(warning => @_) };
 }
 
 sub spawn_children {
