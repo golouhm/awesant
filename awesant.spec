@@ -101,7 +101,7 @@ rm -rf %{buildroot}
 %changelog
 * Fri Feb 13 2015 Jonny Schulz <js@bloonix.de> - 0.16-1
 - Startup failures are now logged into the logfile of awesant.
-* Fri Feb 15 2015 Jonny Schulz <js@bloonix.de> - 0.15-1
+* Fri Feb 13 2015 Jonny Schulz <js@bloonix.de> - 0.15-1
 - Fixed file name of pos file in /var/lib/awesant.
 - Fixed screen output.
 * Thu Sep 25 2014 Jonny Schulz <js@bloonix.de> - 0.14-1
