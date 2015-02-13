@@ -163,7 +163,7 @@ sub get_lastpos {
 
     my $basename = $self->{path};
     $basename =~ s!%!%%!g;
-    $basename =~ s!/!%!;
+    $basename =~ s!/!%!g;
     my $posfile = "$libdir/awesant-$basename.pos";
 
     if (-e $posfile) {
