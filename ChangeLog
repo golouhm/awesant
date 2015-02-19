@@ -1,4 +1,4 @@
-awesant (0.19) released at 2015-XX-XX
+awesant (0.19) released at 2015-02-19
 
     * Create a md5 sum for pos files and use the sum as file name
       to prevent too long file names.
