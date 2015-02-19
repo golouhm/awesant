@@ -162,8 +162,17 @@ sub get_lastpos {
         return;
     }
 
+    my $old_basename = $self->{path};
+    $old_basename =~ s!%!%%!g;
+    $old_basename =~ s!/!%!g;
+    my $old_posfile = "$libdir/awesant-$old_basename.pos";
+
     my $basename = Digest::MD5::md5_hex($self->{path});
     my $posfile = "$libdir/awesant-$basename.pos";
+
+    if (-e $old_posfile) {
+        rename $old_postfile, $posfile;
+    }
 
     if (-e $posfile) {
         $self->log->debug("read last position from $posfile");
