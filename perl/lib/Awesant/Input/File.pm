@@ -127,6 +127,7 @@ package Awesant::Input::File;
 
 use strict;
 use warnings;
+use Digest::MD5;
 use Fcntl qw( :flock O_WRONLY O_CREAT O_RDONLY );
 use Params::Validate qw();
 use Log::Handler;
@@ -161,9 +162,7 @@ sub get_lastpos {
         return;
     }
 
-    my $basename = $self->{path};
-    $basename =~ s!%!%%!g;
-    $basename =~ s!/!%!g;
+    my $basename = Digest::MD5::md5_hex($self->{path});
     my $posfile = "$libdir/awesant-$basename.pos";
 
     if (-e $posfile) {

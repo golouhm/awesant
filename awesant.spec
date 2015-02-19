@@ -16,6 +16,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-%(%{__id_u} -n)
 Source0: http://download.bloonix.de/sources/%{name}-%{version}.tar.gz
 Requires: perl
 Requires: perl(Class::Accessor)
+Requires: perl(Digest::MD5)
 Requires: perl(IO::Socket)
 Requires: perl(IO::Select)
 Requires: perl(JSON)

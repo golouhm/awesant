@@ -1,3 +1,8 @@
+awesant (0.19) released at 2015-XX-XX
+
+    * Create a md5 sum for pos files and use the sum as file name
+      to prevent too long file names.
+
 awesant (0.18) released at 2015-02-13
 
     * Fixed creation of /var/lib/awesant.
