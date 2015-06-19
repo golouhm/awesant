@@ -494,7 +494,7 @@ sub run_log_shipper {
         }
 
         # Destroy file inputs that returns an error.
-        foreach my $num (reverse sort @destroy_inputs) {
+        foreach my $num (sort {$b <=> $a} @destroy_inputs) {
             my $destroy = splice(@$inputs, $num, 1);
             my $filed = $destroy->{path};
             delete $self->filed->{$filed};
