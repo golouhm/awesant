@@ -2,6 +2,6 @@
 
 if test ! -e "/var/log/awesant" ; then
     mkdir -p /var/log/awesant
-vi
+fi
 
 exit 0
