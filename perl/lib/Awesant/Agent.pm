@@ -200,7 +200,7 @@ use constant PARENT_PID => $$;
 # Just some simple accessors
 __PACKAGE__->mk_accessors(qw/config log json watch filed inputs outputs/);
 
-our $VERSION = "0.19";
+our $VERSION = "0.20";
 
 sub run {
     my ($class, %args) = @_;

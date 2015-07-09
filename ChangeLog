@@ -1,3 +1,8 @@
+awesant (0.20) released at 2015-07-09
+
+    * Fixed systemd script name.
+    * Fixed debian postinst script.
+
 awesant (0.19) released at 2015-02-19
 
     * Create a md5 sum for pos files and use the sum as file name
