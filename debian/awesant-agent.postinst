@@ -4,4 +4,8 @@ if test ! -e "/var/log/awesant" ; then
     mkdir -p /var/log/awesant
 fi
 
+if test ! -e "/var/lib/awesant" ; then
+    mkdir -p /var/lib/awesant
+fi
+
 exit 0

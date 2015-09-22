@@ -2,6 +2,12 @@
 
 Awesant is a simple log shipper for logstash. It ships logs from multiple inputs to multiple outputs.
 
+## Latest releases
+
+Please ignore the release list from https://github.com/bloonix/awesant/releases.
+
+Look at https://download.bloonix.de/sources or https://download.bloonix.de/repos for deb or rpm packages.
+
 ## Plugins and Options
 
 Global options for each plugin:
