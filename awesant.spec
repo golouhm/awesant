@@ -58,9 +58,9 @@ install -D -m 644 etc/logrotate.d/awesant %{buildroot}%{logrdir}/awesant
 
 %if %{?with_systemd}
 install -p -D -m 0644 etc/systemd/awesant-agent.service %{buildroot}%{_unitdir}/awesant-agent.service
-%else
-install -p -D -m 0755 etc/init.d/awesant-agent %{buildroot}%{initdir}/awesant-agent
 %endif
+
+install -p -D -m 0755 etc/init.d/awesant-agent %{buildroot}%{initdir}/awesant-agent
 
 cd perl;
 %{__perl} Build install destdir=%{buildroot} create_packlist=0

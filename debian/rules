@@ -53,9 +53,8 @@ install: build
 
 	if test "$(WITH_SYSTEMD)" -eq 1 ; then \
 		install -p -D -m 0644 etc/systemd/awesant-agent.service $(BUILDROOT)/usr/lib/systemd/system/awesant-agent.service; \
-	else \
-		install -p -D -m 0755 etc/init.d/awesant-agent $(BUILDROOT)/etc/init.d/awesant-agent; \
 	fi;
+	install -p -D -m 0755 etc/init.d/awesant-agent $(BUILDROOT)/etc/init.d/awesant-agent; \
 
 	cd perl && $(PERL) Build install destdir=$(BUILDROOT) create_packlist=0
 
