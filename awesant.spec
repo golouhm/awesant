@@ -87,9 +87,8 @@ rm -rf %{buildroot}
 
 %if %{?with_systemd}
 %{_unitdir}/awesant-agent.service
-%else
-%{initdir}/awesant-agent
 %endif
+%{initdir}/awesant-agent
 
 %dir %{perl_vendorlib}/Awesant/
 %dir %{perl_vendorlib}/Awesant/Input

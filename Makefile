@@ -66,9 +66,8 @@ install:
 	if test $(BUILDPKG) -eq 0 ; then \
 		if test -d "/usr/lib/systemd/system" ; then \
 			./install-sh -c -m 0755 etc/systemd/awesant-agent.service $(INITDIR)/awesant-agent.service; \
-		elif test -d "$(INITDIR)" ; then \
-			./install-sh -c -m 0755 etc/init.d/awesant-agent $(INITDIR)/awesant-agent; \
 		fi; \
+		./install-sh -c -m 0755 etc/init.d/awesant-agent $(INITDIR)/awesant-agent; \
 	fi;
 
 	# install the awesant agent perl modules
