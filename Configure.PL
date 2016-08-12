@@ -2,8 +2,6 @@
 use strict;
 use warnings;
 use Getopt::Long qw(:config no_ignore_case);
-use lib "perl/lib";
-use Awesant::Agent;
 
 if (!-e "Makefile") {
     print "Execute me from the source directory!\n";
@@ -53,15 +51,6 @@ if ($o_help) {
     print "\n";
     exit 0;
 }
-
-my ($mversion, $cversion);
-
-$mversion = $Awesant::Agent::VERSION;
-
-open my $ch, "<", "ChangeLog" or die "Unable to open ChangeLog for reading - $!";
-$cversion = <$ch>;
-$cversion =~ s/^awesant\s\((\d+\.\d+)\).*/$1/;
-close $ch;
 
 open my $fh, ">", "Makefile.config" or die "Unable to overwrite Makefile - $!";
 
