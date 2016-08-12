@@ -64,7 +64,7 @@ install:
 	./install-sh -c -m 0755 bin/awesant-create-cert $(PREFIX)/bin/awesant-create-cert
 
 	if test $(BUILDPKG) -eq 0 ; then \
-		if test -d "/usr/lib/systemd/system" ; then \
+		if [ -e /bin/systemctl ] || [ -e /usr/bin/systemctl ] ; then \
 			./install-sh -c -m 0755 etc/systemd/awesant-agent.service $(INITDIR)/awesant-agent.service; \
 		fi; \
 		./install-sh -c -m 0755 etc/init.d/awesant-agent $(INITDIR)/awesant-agent; \
