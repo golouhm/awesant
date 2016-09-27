@@ -2,8 +2,6 @@
 use strict;
 use warnings;
 use Getopt::Long qw(:config no_ignore_case);
-use lib "perl/lib";
-use Awesant::Agent;
 
 if (!-e "Makefile") {
     print "Execute me from the source directory!\n";
@@ -15,6 +13,7 @@ my $o_confdir          = "/etc";
 my $o_initdir          = "/etc/init.d";
 my $o_logdir           = "/var/log";
 my $o_rundir           = "/var/run";
+my $o_libdir           = "/var/lib";
 my $o_perl             = "/usr/bin/perl";
 my $o_perl_prefix      = "/usr/local";
 my $o_perl_destdir     = "";
@@ -28,6 +27,7 @@ GetOptions(
     "confdir=s"          => \$o_confdir,
     "initdir=s"          => \$o_initdir,
     "logdir=s"           => \$o_logdir,
+    "libdir=s"           => \$o_logdir,
     "rundir=s"           => \$o_rundir,
     "perl=s"             => \$o_perl,
     "perl-destdir=s"     => \$o_perl_destdir,
@@ -52,15 +52,6 @@ if ($o_help) {
     exit 0;
 }
 
-my ($mversion, $cversion);
-
-$mversion = $Awesant::Agent::VERSION;
-
-open my $ch, "<", "ChangeLog" or die "Unable to open ChangeLog for reading - $!";
-$cversion = <$ch>;
-$cversion =~ s/^awesant\s\((\d+\.\d+)\).*/$1/;
-close $ch;
-
 open my $fh, ">", "Makefile.config" or die "Unable to overwrite Makefile - $!";
 
 print "Writing Makefile.config ...\n";
@@ -72,6 +63,7 @@ CONFDIR=\$(DESTDIR)$o_confdir
 INITDIR=\$(DESTDIR)$o_initdir
 LOGDIR=\$(DESTDIR)$o_logdir
 RUNDIR=\$(DESTDIR)$o_rundir
+LIBDIR=\$(DESTDIR)$o_libdir
 PERL=$o_perl
 PERL_INSTALLDIRS=$o_perl_installdirs
 PERL_DESTDIR=\$(DESTDIR)

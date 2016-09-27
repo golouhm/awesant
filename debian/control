@@ -3,16 +3,16 @@ Section: net
 Priority: extra
 Maintainer: Jonny Schulz <js@bloonix.de>
 Build-Depends: debhelper (>= 7.0.50~),
- liblog-handler-perl,
- libparams-validate-perl,
- libjson-perl,
- libclass-accessor-perl,
- libsys-hostname-long-perl,
- libsub-name-perl,
- libmodule-implementation-perl,
- libmodule-runtime-perl,
- libtry-tiny-perl,
- libparams-classify-perl
+# liblog-handler-perl,
+# libparams-validate-perl,
+# libjson-perl,
+# libclass-accessor-perl,
+# libsys-hostname-long-perl,
+# libsub-name-perl,
+# libmodule-implementation-perl,
+# libmodule-runtime-perl,
+# libtry-tiny-perl,
+# libparams-classify-perl
 Standards-Version: 3.8.4
 Homepage: http://www.bloonix.de/
 

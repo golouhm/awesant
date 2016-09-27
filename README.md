@@ -2,6 +2,12 @@
 
 Awesant is a simple log shipper for logstash. It ships logs from multiple inputs to multiple outputs.
 
+## Latest releases
+
+Please ignore the release list from https://github.com/bloonix/awesant/releases.
+
+Look at https://download.bloonix.de/sources or https://download.bloonix.de/repos for deb or rpm packages.
+
 ## Plugins and Options
 
 Global options for each plugin:
@@ -58,7 +64,7 @@ Just download the project and execute
 
 Or create an RPM with
 
-    VERSION=0.13
+    VERSION=0.18
     git clone https://github.com/bloonix/awesant.git -b v$VERSION awesant-$VERSION
     tar -czf awesant-$VERSION.tar.gz awesant-$VERSION
     rpmbuild -ta awesant-$VERSION.tar.gz
@@ -66,7 +72,7 @@ Or create an RPM with
 
 Or create a deb-package with
 
-    VERSION=v0.10
+    VERSION=v0.18
     git clone https://github.com/bloonix/awesant.git
     cd awesant
     git checkout $VERSION
@@ -76,7 +82,10 @@ Or create a deb-package with
 
 You can install Awesant from the Bloonix repository if you like.
 The packages are available for Debian and CentOS like distributions.
-Just look into the INSTALL files on http://download.bloonix.de/.
+
+You can find the repositories here:
+
+https://bloonix.org/de/docs/installation/repositories.html
 
 ## HowTo
 

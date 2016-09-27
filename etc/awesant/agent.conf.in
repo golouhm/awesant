@@ -20,11 +20,8 @@ output {
 }
 
 logger {
-    #file {
-    #    filename /var/log/awesant/agent.log
-    #    maxlevel info
-    #}
-    screen {
+    file {
+        filename /var/log/awesant/agent.log
         maxlevel info
     }
 }

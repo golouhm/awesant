@@ -20,6 +20,7 @@ build:
 		sed -i "s!@@PREFIX@@!$(PREFIX)!g" $$file; \
 		sed -i "s!@@CONFDIR@@!$(CONFDIR)!g" $$file; \
 		sed -i "s!@@RUNDIR@@!$(RUNDIR)!g" $$file; \
+		sed -i "s!@@LIBDIR@@!$(LIBDIR)!g" $$file; \
 	done;
 
 	if test "$(WITHOUT_PERL)" = "0" ; then \
@@ -63,11 +64,10 @@ install:
 	./install-sh -c -m 0755 bin/awesant-create-cert $(PREFIX)/bin/awesant-create-cert
 
 	if test $(BUILDPKG) -eq 0 ; then \
-		if test -d "/usr/lib/systemd/system" ; then \
+		if [ -e /bin/systemctl ] || [ -e /usr/bin/systemctl ] ; then \
 			./install-sh -c -m 0755 etc/systemd/awesant-agent.service $(INITDIR)/awesant-agent.service; \
-		elif test -d "$(INITDIR)" ; then \
-			./install-sh -c -m 0755 etc/init.d/awesant-agent $(INITDIR)/awesant-agent; \
 		fi; \
+		./install-sh -c -m 0755 etc/init.d/awesant-agent $(INITDIR)/awesant-agent; \
 	fi;
 
 	# install the awesant agent perl modules

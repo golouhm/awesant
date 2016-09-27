@@ -1,6 +1,6 @@
 Summary: Awesant is a log shipper for logstash.
 Name: awesant
-Version: 0.14
+Version: 0.22
 Release: 1%{?dist}
 License: distributable
 Group: System Environment/Daemons
@@ -16,6 +16,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-%(%{__id_u} -n)
 Source0: http://download.bloonix.de/sources/%{name}-%{version}.tar.gz
 Requires: perl
 Requires: perl(Class::Accessor)
+Requires: perl(Digest::MD5)
 Requires: perl(IO::Socket)
 Requires: perl(IO::Select)
 Requires: perl(JSON)
@@ -57,9 +58,9 @@ install -D -m 644 etc/logrotate.d/awesant %{buildroot}%{logrdir}/awesant
 
 %if %{?with_systemd}
 install -p -D -m 0644 etc/systemd/awesant-agent.service %{buildroot}%{_unitdir}/awesant-agent.service
-%else
-install -p -D -m 0755 etc/init.d/awesant-agent %{buildroot}%{initdir}/awesant-agent
 %endif
+
+install -p -D -m 0755 etc/init.d/awesant-agent %{buildroot}%{initdir}/awesant-agent
 
 cd perl;
 %{__perl} Build install destdir=%{buildroot} create_packlist=0
@@ -86,9 +87,8 @@ rm -rf %{buildroot}
 
 %if %{?with_systemd}
 %{_unitdir}/awesant-agent.service
-%else
-%{initdir}/awesant-agent
 %endif
+%{initdir}/awesant-agent
 
 %dir %{perl_vendorlib}/Awesant/
 %dir %{perl_vendorlib}/Awesant/Input
@@ -99,6 +99,26 @@ rm -rf %{buildroot}
 %{_mandir}/man?/Awesant::*
 
 %changelog
+* Fri Aug 12 2016 Jonny Schulz <js@bloonix.de> - 0.22-1
+- Fixed: determine if systemctl is in use.
+* Fri Nov 06 2015 Jonny Schulz <js@bloonix.de> - 0.21-1
+- Fixed: force the installation of the SysVinit script on systemd
+  based distributions for backward compability.
+* Thu Jul 09 2015 Jonny Schulz <js@bloonix.de> - 0.20-1
+- Fixed systemd script name.
+- Fixed debian postinst script.
+* Thu Feb 19 2015 Jonny Schulz <js@bloonix.de> - 0.19-1
+- Create a md5 sum for pos files and use the sum as file name
+  to prevent too long file names.
+* Fri Feb 13 2015 Jonny Schulz <js@bloonix.de> - 0.18-1
+- Fixed creation of /var/lib/awesant.
+* Fri Feb 13 2015 Jonny Schulz <js@bloonix.de> - 0.17-1
+- Fixed file name generation of the pos file in Input/File.pm.
+* Fri Feb 13 2015 Jonny Schulz <js@bloonix.de> - 0.16-1
+- Startup failures are now logged into the logfile of awesant.
+* Fri Feb 13 2015 Jonny Schulz <js@bloonix.de> - 0.15-1
+- Fixed file name of pos file in /var/lib/awesant.
+- Fixed screen output.
 * Thu Sep 25 2014 Jonny Schulz <js@bloonix.de> - 0.14-1
 - Added parameter 'grep' for Input/File.pm to skip events that
   does not match.

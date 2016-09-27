@@ -51,7 +51,7 @@ Lines that match the regexes will be skipped.
 
 Experimental feature.
 
-If the option save_position is set to true then the last position
+If the option save_position is set to 'yes' then the last position
 with the inode of the log file is saved to a file. If Awesant is down
 then it can resume its work where it was stopped. This is useful if you
 want to lose as less data as possible of your log files.
@@ -127,6 +127,7 @@ package Awesant::Input::File;
 
 use strict;
 use warnings;
+use Digest::MD5;
 use Fcntl qw( :flock O_WRONLY O_CREAT O_RDONLY );
 use Params::Validate qw();
 use Log::Handler;
@@ -161,8 +162,17 @@ sub get_lastpos {
         return;
     }
 
-    my $basename = do { $self->{path} =~ m!([^\\/]+)\z!; $1 };
+    my $old_basename = $self->{path};
+    $old_basename =~ s!%!%%!g;
+    $old_basename =~ s!/!%!g;
+    my $old_posfile = "$libdir/awesant-$old_basename.pos";
+
+    my $basename = Digest::MD5::md5_hex($self->{path});
     my $posfile = "$libdir/awesant-$basename.pos";
+
+    if (-e $old_posfile) {
+        rename $old_posfile, $posfile;
+    }
 
     if (-e $posfile) {
         $self->log->debug("read last position from $posfile");
