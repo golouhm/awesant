@@ -429,8 +429,10 @@ sub pull {
 
 
 	# Check if it's time to consider multiline msg complete (10 sec rule)
-    if (defined $self->{multiline_lastreadtime} and
-       Time::HiRes::gettimeofday() - $self->{multiline_lastreadtime} > 10) 
+    if ($self->{multiline_status} ne "find-start" and 
+    	defined $self->{multiline_lastreadtime} and
+       	Time::HiRes::gettimeofday() - $self->{multiline_lastreadtime} > 10
+       ) 
     {
         $self->log->debug("10 sec rule - flush multiline message buffer");
 		my %msg = $self->convert_xmlalert_to_hash($self->{multiline_buffer});
