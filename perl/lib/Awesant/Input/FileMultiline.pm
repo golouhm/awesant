@@ -13,7 +13,7 @@ Awesant::Input::FileMultiline - Files as input with multiline option.
         multiline_suffix => "<\/msg>",
         multiline_drop_garbage => 1,        
     );
-
+ 
     # Pull the next 100 multiline records that were appended
     # to the log file.
     $input->pull(lines => 100);
