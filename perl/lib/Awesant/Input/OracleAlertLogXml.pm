@@ -163,7 +163,8 @@ use Params::Validate qw();
 use Log::Handler;
 use JSON;
 
-sub  trim { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s };
+sub  trim  { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s };
+sub  rtrim { my $s = shift; $s =~ s/\s+$//g; return $s };
 
 sub new {
     my $class = shift;
@@ -377,7 +378,7 @@ sub pull {
 					my %msg = $self->convert_xmlalert_to_hash($self->{multiline_buffer});
 					if (!$self->{is_tns_multiline}) {
 						# start of tns multiline
-						if ( $msg{"txt"} =~ /^\s*\*{71}/ ) {		
+						if ( $msg{"message"} =~ /^\s*\*{71}/ ) {		
 							$self->log->debug("Start of a new tns multiline");				    
 							$self->{is_tns_multiline} = 1;
 							$self->{tns_multiline_buffer} = \%msg;
@@ -385,31 +386,31 @@ sub pull {
 						# plain simple alert log line
 						else {					
 							#$self->log->debug(encode_json \%msg);
-							if ($self->check_event($msg{"txt"})) {
+							if ($self->check_event($msg{"message"})) {
 								push @$lines, encode_json \%msg;
 							}
 						}
 					# continuation of tns multiline	
 					} else {
 						# another tns multiline following
-						if ( $msg{"txt"} =~ /^\s*\*{71}/ ) {	
+						if ( $msg{"message"} =~ /^\s*\*{71}/ ) {	
 						 	$self->log->debug("Start of another tns multiline");
-							if ($self->check_event($self->{tns_multiline_buffer}->{"txt"})) {
+							if ($self->check_event($self->{tns_multiline_buffer}->{"message"})) {
 								push @$lines, encode_json $self->{tns_multiline_buffer};
 							}						 	
 							$self->{tns_multiline_buffer} = \%msg;
 						}
 						# continuation of the same tns message
-						elsif ( $msg{"txt"} =~ /^\s.*|^TNS.*|^Fatal NI connect error.*/ ) {
+						elsif ( $msg{"message"} =~ /^\s.*|^TNS.*|^Fatal NI connect error.*/ ) {
 							$self->log->debug("Continuation of tns multiline");
-							$self->log->debug($msg{"txt"}	);
-							$self->{tns_multiline_buffer}->{"txt"} .= $msg{"txt"};
+							$self->log->debug($msg{"message"}	);
+							$self->{tns_multiline_buffer}->{"message"} .= $msg{"message"};
 						}
 						# end of tns multiline	
 						else {
 							$self->log->debug("End of tns multiline");
 							$self->{is_tns_multiline} = 0;
-							if ($self->check_event($self->{tns_multiline_buffer}->{"txt"})) {
+							if ($self->check_event($self->{tns_multiline_buffer}->{"message"})) {
 								push @$lines, encode_json $self->{tns_multiline_buffer};
 							}								
 						}
@@ -437,11 +438,11 @@ sub pull {
         $self->log->debug("10 sec rule - flush multiline message buffer");
 		my %msg = $self->convert_xmlalert_to_hash($self->{multiline_buffer});
 		if (!$self->{is_tns_multiline}) {
-			if ($self->check_event($msg{"txt"})) {
+			if ($self->check_event($msg{"message"})) {
 				push @$lines, encode_json \%msg;
 			}	
 		} else {
-			if ($self->check_event($self->{tns_multiline_buffer}->{"txt"})) {
+			if ($self->check_event($self->{tns_multiline_buffer}->{"message"})) {
 				push @$lines, encode_json $self->{tns_multiline_buffer};
 			}
 		}
@@ -570,17 +571,21 @@ sub convert_xmlalert_to_hash {
 	
 	# construct hash with all the attribute elements 
 	# split attrs to extrace key and value
+	# prefix ora. is added to avoid conflict for eg. type
 	my %alertlog_json;
 	foreach (@attrs) {
 		my @attr = split(/='/, $_);
 		# skip empty attributes
 		if ($attr[1]) {
-			$alertlog_json{trim($attr[0])} = trim($attr[1]);
+			$alertlog_json{"ora.".trim($attr[0])} = trim($attr[1]);
  		}
  	}
  	
+ 	$alertlog_json{"source_host"} = delete $alertlog_json{"ora.host_id"};
+ 	$alertlog_json{"source_path"} = $self->{path};
+ 	
  	# add text field
- 	$alertlog_json{"txt"} = substr($msg, $txt_start, $txt_end - $txt_start +1 );
+ 	$alertlog_json{"message"} = rtrim(substr($msg, $txt_start, $txt_end - $txt_start +1 ));
 		
 	return %alertlog_json;
 }
