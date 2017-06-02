@@ -3,17 +3,22 @@ use strict;
 use warnings;
 
 my @modules = qw(
+    Awesant::Output::Lumberjack
     Awesant::Output::Redis
     Awesant::Output::Screen
     Awesant::Output::Socket
     Awesant::Output::Rabbitmq
     Awesant::Input::File
+    Awesant::Input::FileMultiline
+    Awesant::Input::Lumberjack
+    Awesant::Input::OracleAlertLogXml
     Awesant::Input::Socket
 );
 
 foreach my $mod (@modules) {
     my $file = "perl/lib/$mod.pm";
     $file =~ s!::!/!g;
+	print "Creating markdown for $file ...";    
     open my $in, "<", $file or die $!;
     my $description;
     my $content = do { local $/; <$in> };
@@ -31,4 +36,5 @@ foreach my $mod (@modules) {
     print $out "## Options\n\n";
     print $out $content;
     close $out;
+    print " created\n";
 }

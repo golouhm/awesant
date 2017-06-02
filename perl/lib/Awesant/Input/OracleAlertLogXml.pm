@@ -342,14 +342,19 @@ sub pull {
     my $max_multiline_blocks = $opts{lines} || 1;
     my $lines = [ ];
     my $fhpos = $self->{fhpos};
-    my $fhlog = $self->open_logfile
-        or return undef;
-        
-	my $oldpos = $self->{multiline_lastpos} = tell ($fhlog);
-    while (my $line = <$fhlog>) {
-        $oldpos = $self->{multiline_lastpos}; 
-    	$self->{multiline_lastpos} = tell ($fhlog);
-    	$self->{multiline_lastreadtime} = Time::HiRes::gettimeofday();
+    my $fhlog = $self->open_logfile or return undef;
+        	
+	my $lastpos = $self->{lastpos};
+#	my $multiline_lastpos = $self->{multiline_lastpos};
+	my $multiline_lastreadtime = $self->{multiline_lastreadtime};
+	my $multiline_status = $self->{multiline_status};
+	my $multiline_buffer = $self->{multiline_buffer};
+	my $is_tns_multiline = $self->{is_tns_multiline};
+	my $tns_multiline_buffer = $self->{tns_multiline_buffer};
+	
+    while (my $line = <$fhlog>) { 
+#    	$multiline_lastpos = tell ($fhlog);
+    	$multiline_lastreadtime = Time::HiRes::gettimeofday() unless defined $multiline_lastreadtime;
         
         chomp $line;
 
@@ -361,66 +366,74 @@ sub pull {
         #</txt>
         #</msg>
         
-        $self->log->debug("new line read: $self->{multiline_status}") unless $self->{is_tns_multiline};
+#        $self->log->debug("new line read: $self->{multiline_status}") unless $self->{is_tns_multiline};
         		# search until prefix is matched than start with new multiline block
         		# drop non matching lines until next <msg.* is found
-        		if ($self->{multiline_status} eq "find-start") {
-        			if ($line =~ /<msg.*/) {
-        				$self->{multiline_buffer} = "$line";
-        				$self->{multiline_status} = "read-until-suffix";
+        		if ($multiline_status eq "find-start") {
+        			# use index or substr instead of regex because it is twice as fast
+					# if ($line =~ /<msg.*/) {
+        			if (index($line,"<msg") == 0) {
+        				$multiline_buffer = "$line";
+        				$multiline_status = "read-until-suffix";
         			} 
         			next;
         		}  
         		
         		# </msg> terminates the multiline block
-				if ($line =~ /<\/msg>/) {
-					$self->{multiline_buffer} .= "\n$line";
-					my %msg = $self->convert_xmlalert_to_hash($self->{multiline_buffer});
-					if (!$self->{is_tns_multiline}) {
+        		# use index or substr instead of regex because it is twice as fast
+				#if ($line =~ /<\/msg>/) {
+				if (index($line,"<\/msg>") == 0) {
+					$multiline_buffer .= "\n$line";
+					my %msg = %{$self->convert_xmlalert_to_hash($multiline_buffer)};
+					$msg{"offset"} = $lastpos + 1;
+					if (!$is_tns_multiline) {
 						# start of tns multiline
-						if ( $msg{"message"} =~ /^\s*\*{71}/ ) {		
-							$self->log->debug("Start of a new tns multiline");				    
-							$self->{is_tns_multiline} = 1;
-							$self->{tns_multiline_buffer} = \%msg;
+						if ( $msg{"line"} =~ /^\s*\*{71}/ ) {		
+#							$self->log->debug("Start of a new tns multiline");				    
+							$is_tns_multiline = 1;
+							$tns_multiline_buffer = \%msg;
 						} 
 						# plain simple alert log line
 						else {					
 							#$self->log->debug(encode_json \%msg);
-							if ($self->check_event($msg{"message"})) {
-								push @$lines, encode_json \%msg;
+							if ($self->check_event($msg{"line"})) {
+#								push @$lines, encode_json \%msg;
+								push @$lines, \%msg;
 							}
 						}
 					# continuation of tns multiline	
 					} else {
 						# another tns multiline following
-						if ( $msg{"message"} =~ /^\s*\*{71}/ ) {	
-						 	$self->log->debug("Start of another tns multiline");
-							if ($self->check_event($self->{tns_multiline_buffer}->{"message"})) {
-								push @$lines, encode_json $self->{tns_multiline_buffer};
+						if ( $msg{"line"} =~ /^\s*\*{71}/ ) {	
+#						 	$self->log->debug("Start of another tns multiline");
+							if ($self->check_event($tns_multiline_buffer->{"line"})) {
+#								push @$lines, encode_json $tns_multiline_buffer;
+								push @$lines, $tns_multiline_buffer;
 							}						 	
-							$self->{tns_multiline_buffer} = \%msg;
+							$tns_multiline_buffer = \%msg;
 						}
 						# continuation of the same tns message
-						elsif ( $msg{"message"} =~ /^\s.*|^TNS.*|^Fatal NI connect error.*/ ) {
-							$self->log->debug("Continuation of tns multiline");
-							$self->log->debug($msg{"message"}	);
-							$self->{tns_multiline_buffer}->{"message"} .= $msg{"message"};
+						elsif ( $msg{"line"} =~ /^\s.*|^TNS.*|^Fatal NI connect error.*/ ) {
+#							$self->log->debug("Continuation of tns multiline");
+#							$self->log->debug($msg{"message"}	);
+							$tns_multiline_buffer->{"line"} .= $msg{"line"};
 						}
 						# end of tns multiline	
 						else {
-							$self->log->debug("End of tns multiline");
-							$self->{is_tns_multiline} = 0;
-							if ($self->check_event($self->{tns_multiline_buffer}->{"message"})) {
-								push @$lines, encode_json $self->{tns_multiline_buffer};
+#							$self->log->debug("End of tns multiline");
+							$is_tns_multiline = 0;
+							if ($self->check_event($tns_multiline_buffer->{"line"})) {
+#								push @$lines, encode_json $tns_multiline_buffer;
+								push @$lines, $tns_multiline_buffer;
 							}								
 						}
 						
 					}
-        			$self->{multiline_buffer} = "";
-        			$self->{multiline_status} = "find-start";
-        			$self->{lastpos} = $self->{multiline_lastpos};
+        			$multiline_buffer = "";
+        			$multiline_status = "find-start";
+        			$lastpos = tell ($fhlog);
         		} else {
-        			$self->{multiline_buffer} .= "\n$line";
+        			$multiline_buffer .= "\n$line";
         			next;        			
         		}               		
 
@@ -430,42 +443,54 @@ sub pull {
 
 
 	# Check if it's time to consider multiline msg complete (10 sec rule)
-    if ($self->{multiline_status} ne "find-start" and 
-    	defined $self->{multiline_lastreadtime} and
-       	Time::HiRes::gettimeofday() - $self->{multiline_lastreadtime} > 10
+    if ($multiline_status ne "find-start" and 
+    	defined $multiline_lastreadtime and
+       	Time::HiRes::gettimeofday() - $multiline_lastreadtime > 10
        ) 
     {
-        $self->log->debug("10 sec rule - flush multiline message buffer");
-		my %msg = $self->convert_xmlalert_to_hash($self->{multiline_buffer});
-		if (!$self->{is_tns_multiline}) {
-			if ($self->check_event($msg{"message"})) {
-				push @$lines, encode_json \%msg;
+#        $self->log->debug("10 sec rule - flush multiline message buffer");
+		my %msg = %{$self->convert_xmlalert_to_hash($multiline_buffer)};
+		if (!$is_tns_multiline) {
+			if ($self->check_event($msg{"line"})) {
+#				push @$lines, encode_json \%msg;
+				push @$lines, \%msg;
 			}	
 		} else {
-			if ($self->check_event($self->{tns_multiline_buffer}->{"message"})) {
-				push @$lines, encode_json $self->{tns_multiline_buffer};
+			if ($self->check_event($tns_multiline_buffer->{"line"})) {
+#				push @$lines, encode_json $tns_multiline_buffer;
+				push @$lines, $tns_multiline_buffer;
 			}
 		}
-    	push @$lines, $self->{multiline_buffer};
-    	$self->{multiline_buffer} = undef;
-    	$self->{multiline_status} = "find-start";    
-    	$self->{lastpos} = $self->{multiline_lastpos};   
-    	$self->{multiline_lastreadtime} = undef; 
-    	$self->{is_tns_multiline} = 0;
+    	push @$lines, $multiline_buffer;
+    	$multiline_buffer = undef;
+    	$multiline_status = "find-start";    
+    	$lastpos = tell ($fhlog);   
+    	$multiline_lastreadtime = undef; 
+    	$is_tns_multiline = 0;
     }
 
 
     if ($self->{fhpos}) {
         seek($fhpos, 0, 0);
-        printf $fhpos "%014d:%014d", $self->{inode}, $self->{lastpos};
+        printf $fhpos "%014d:%014d", $self->{inode}, $lastpos;
     }
 
     # If EOF is reached then the logfile should be
     # checked if the file was rotated.
     if ($max_multiline_blocks > 0) {
-        $self->log->debug("reached end of file");
+#        $self->log->debug("reached end of file");
         $self->{reached_end_of_file}++;
     }
+
+    $multiline_lastreadtime = Time::HiRes::gettimeofday() unless not defined $multiline_lastreadtime;
+    $self->{lastpos} = $lastpos;
+#	$self->{multiline_lastpos} = $multiline_lastpos;
+	$self->{multiline_lastreadtime} = $multiline_lastreadtime;
+	$self->{multiline_status} = $multiline_status;
+	$self->{multiline_buffer} = $multiline_buffer;
+	$self->{is_tns_multiline} = $is_tns_multiline; 
+	$self->{tns_multiline_buffer} = $tns_multiline_buffer;
+
 
     return $lines;
 }
@@ -552,7 +577,7 @@ sub convert_xmlalert_to_hash {
 	my $txt_start = index ($msg, '<txt>') + 5;
 	my $txt_end = index ($msg, '</txt>') - 1;
 
-	my $attr_start = $msg_start + 4;
+	my $attr_start = $msg_start + 5;
 	my $attr_end = rindex ($msg, ">", $txt_start - 5) - 1;
 
 	# extract attributes of <msg> tag
@@ -567,27 +592,29 @@ sub convert_xmlalert_to_hash {
 	# host_addr='12.12.12.12
 	# module='
 	# pid='19562
-	my @attrs = split(/'\s+>?/, substr($msg, $attr_start, $attr_end - $attr_start ));
+#	my @attrs = split(/'\s+>?/, substr($msg, $attr_start, $attr_end - $attr_start ));
+    my %alertlog_json = map { (split /='/, "ora.".$_) } split /'\s+>?/, substr($msg, $attr_start, $attr_end - $attr_start );
 	
 	# construct hash with all the attribute elements 
 	# split attrs to extrace key and value
 	# prefix ora. is added to avoid conflict for eg. type
-	my %alertlog_json;
-	foreach (@attrs) {
-		my @attr = split(/='/, $_);
+#	my %alertlog_json;
+#	foreach (@attrs) {
+#		my ($attr0, $attr1) = split(/='/, $_, 2);
 		# skip empty attributes
-		if ($attr[1]) {
-			$alertlog_json{"ora.".trim($attr[0])} = trim($attr[1]);
- 		}
- 	}
+#		if (defined $attr1) {
+##			$alertlog_json{"ora.".$attr0} = $attr1;
+#			$alertlog_json{"ora.".trim($attr0)} = trim($attr1);
+# 		}
+# 	}
  	
- 	$alertlog_json{"source_host"} = delete $alertlog_json{"ora.host_id"};
- 	$alertlog_json{"source_path"} = $self->{path};
+ 	$alertlog_json{"host"} = delete $alertlog_json{"ora.host_id"};
+ 	$alertlog_json{"file"} = $self->{path};
  	
  	# add text field
- 	$alertlog_json{"message"} = rtrim(substr($msg, $txt_start, $txt_end - $txt_start +1 ));
+ 	$alertlog_json{"line"} = rtrim(substr($msg, $txt_start, $txt_end - $txt_start +1 ));
 		
-	return %alertlog_json;
+	return \%alertlog_json;
 }
 
 1;

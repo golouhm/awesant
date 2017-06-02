@@ -17,7 +17,10 @@ Global options for each plugin:
 Currently supported inputs:
 
 * File: <https://github.com/bloonix/awesant/blob/master/InputFileOptions.md>
+* File Multiline: <https://github.com/bloonix/awesant/blob/master/InputFileMultilineOptions.md>
+* Oracle Alert Log: <https://github.com/bloonix/awesant/blob/master/InputOracleAlertLogOptions.md>
 * Socket: <https://github.com/bloonix/awesant/blob/master/InputSocketOptions.md>
+* Lumberjack: <https://github.com/bloonix/awesant/blob/master/InputLumberjackOptions.md>
 
 Currently supported outputs:
 
@@ -25,6 +28,7 @@ Currently supported outputs:
 * RabbitMQ: <https://github.com/bloonix/awesant/blob/master/OutputRabbitmqOptions.md>
 * Screen: <https://github.com/bloonix/awesant/blob/master/OutputScreenOptions.md>
 * Socket: <https://github.com/bloonix/awesant/blob/master/OutputSocketOptions.md>
+* Lumberjack: <https://github.com/bloonix/awesant/blob/master/OutputLumberjackOptions.md>
 
 Configuration syntax:
 
@@ -44,7 +48,9 @@ to run Awesant on your machine. Let us have a look at what you need to install:
     Time::HiRes
     JSON  (please install the JSON-XS Perl module for a better performance)
 
-If you want to transport logs via SSL and the Socket output then you need to install IO::Socket::SSL.
+You need to install IO::Socket::SSL
+- if you want to transport logs via SSL and the Socket input/output
+- if you use Lumberjack input/output
 
 If you want to transport logs to RabbitMQ you need to install Net::RabbitMQ.
 
