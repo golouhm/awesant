@@ -185,6 +185,7 @@ use Sys::Hostname;
 use Time::HiRes qw();
 use Awesant::Config;
 use Awesant::HangUp;
+use Data::Dumper;
 use base qw(Class::Accessor::Fast);
 
 # On Windows fork() is not really available.
@@ -243,12 +244,14 @@ sub load_output {
     my $self = shift;
     my $outputs = $self->config->{output};
 
-    $self->log->info("load output plugins");
+    $self->log->info("loading output plugins");
 
     foreach my $output (keys %$outputs) {
         # At first the output module is required.
         # Example: redis => Awesant/Output/Redis.pm
+        $self->log->info("Loading output plugin $output");
         my $module = $self->load_module(output => $output);
+        $self->log->info("Output plugin $output loaded ($module)");
 
         foreach my $config (@{$outputs->{$output}}) {
             # Option "type" is used by the agent and must be
@@ -279,6 +282,8 @@ sub load_output {
             }
         }
     }
+    
+    $self->log->info("loading output plugins complete");
 }
 
 sub load_input {
@@ -321,7 +326,7 @@ sub load_input {
             if ($agent_config{workers}) {
                 $input_group = {
                     watch => [ ], filed => { }, inputs => [ ],
-                    workers => $agent_config{workers},
+                    workers => $agent_config{workers}
                 };
                 push @{$self->inputs}, $input_group;
             } else {
@@ -396,7 +401,7 @@ sub load_module {
     );
 
     eval "require $module";
-
+    
     if ($@) {
         # The module name may be uppercase.
         # output { tcp { } }
@@ -406,10 +411,11 @@ sub load_module {
             ucfirst($io),
             uc($type),
         );
-        eval "require $module";
+    	eval "require $module";
         die $@ if $@;
     }
 
+    $self->log->debug("Load_module return $module");
     return $module;
 }
 
@@ -440,8 +446,7 @@ sub run_server {
     my $reaped = $self->{reaped};
 
     # Handle died children.
-    $SIG{CHLD} = sub { $self->sig_child_handler(@_) };
-
+    $SIG{CHLD} = sub { $self->sig_child_handler(@_); };
     while ($self->{done} == 0) {
         # Reap died children.
         $self->reap_children;
@@ -460,7 +465,6 @@ sub run_server {
         # Sleep a while
         Time::HiRes::usleep(500_000);
     }
-
     $self->kill_children;
 }
 
@@ -474,6 +478,56 @@ sub run_agent {
             sleep 1;
         }
     }
+}
+
+# send $events to $output
+# return number of unsent events:
+#   return value = 0 => all events successfully sent
+#   return value > 0 => there was an error sending events to output
+sub send_events_to_output {
+    my ($self, $output, $events, $otype) = @_;
+
+    # max window size of output
+    # if not defined default is 1
+    my $output_windows_size = $output->{max_window_size};
+    if (!defined $output_windows_size) {
+        $output_windows_size = 1;
+    }
+                          
+    my $num_of_events = $#{$events}+1;
+	my $num_of_shipped = 0;     
+    $self->log->info( "Output $otype using $output preparing to ship $num_of_events event(s)");
+    while ($num_of_events > $num_of_shipped ) {   
+    	# for compatibility with older outputs don't push windows size 1 as array 
+    	if ($output_windows_size == 1) {
+        	if ( !$output->push($events->[$num_of_shipped]) ) {
+				$self->log->error("Output $otype using $output returns an error ");
+                last;
+            }
+            $self->log->info( "Output $otype using $output shiped 1 event");
+            $num_of_shipped = $num_of_shipped + 1;
+        
+        # number of events is less then or equal to max_window_size	                		
+        } elsif ($#{$events}+1 <= $output_windows_size ) {    
+            if ( !$output->push( [@{$events}] )) {
+				$self->log->error("Output $otype using $output returns an error");
+                last;
+            }
+            $self->log->info( "Output $otype using $output shiped " . ($#{$events} + 1) . " event(s) (num of shiped events is less or equal to max windows size)");
+            $num_of_shipped = $num_of_shipped + $#{$events} + 1;
+                    	
+        # number of events is more then max_window_size	   	
+        } else {
+            if ( !$output->push([@{$events}[$num_of_shipped..$output_windows_size-1]] ) ) {
+				$self->log->error("Output $otype using $output returns an error");
+                last;
+            }
+            $self->log->info( "Output $otype using $output shiped $output_windows_size events equal to windows size");
+            $num_of_shipped += $output_windows_size;
+        }
+    }         
+
+	return $num_of_events - $num_of_shipped;
 }
 
 sub run_log_shipper {
@@ -555,58 +609,43 @@ sub run_log_shipper {
             # lines must be flushed to the outputs first.
             if ($failed{$itype}) {
                 $self->log->info("found failed events for input type $itype");
-
+                
                 # Process each failed output until no further outputs exists.
                 while (my $ref = shift @{$failed{$itype}}) {
                     my $output = $ref->{output};
                     my $otype  = $ref->{type};
-                    my $count  = 0;
-                    my $bytes  = 0;
+                    my $num_of_unsent  = 0;
+                    my $num_of_events = scalar @{$ref->{events}};
 
-                    # Process each line until the array is empty.
+                    # Process events
                     $self->log->info(
                         "try to process",
-                        scalar @{$ref->{lines}},
-                        "events for output type $otype",
+                        scalar @{$ref->{events}},
+                        "event(s) for output type $otype",
                     );
-                    while (my $line = shift @{$ref->{lines}}) {
-                        my ($otype, $event) = $self->prepare_message($input, $line)
-                            or next;
+                    
+                    $num_of_unsent = $self->send_events_to_output($output, $ref->{events}, $otype);
 
-                        # If the output is not available then the last line
-                        # is stored back to the array.
-                        if (!$output->push($event)) {
-                            unshift @{$ref->{lines}}, $line;
-                            last;
-                        }
-
-                        $count += 1;
-                        $bytes += length($line);
-                        $count_lines += 1;
-                        $count_bytes += $bytes;
-                    }
-
-                    if ($count) {
+                    if ($num_of_unsent == 0) {
                         $self->log->notice(
                             "output $otype is reachable again -",
-                            "flushed $count lines with $bytes bytes"
+                            "flushed $num_of_events event(s)"
                         );
                     }
 
                     # If it wasn't possilbe to ship all events then the
                     # output returns an error. In this case the output
                     # is stored back to the %failed hash.
-                    if (@{$ref->{lines}}) {
+                    if ($num_of_unsent > 0 ) {
                         # The error message should only be logged if the output died again.
-                        if ($count) {
-                            $count = scalar @{$ref->{lines}};
-                            $bytes = length join("", @{$ref->{lines}});
+                        if ($num_of_unsent == $num_of_events) {
                             $self->log->error(
                                 "output $otype returns an error again -",
-                                "held $count lines with $bytes bytes in stash"
+                                "held $num_of_unsent event(s) in stash"
                             );
                         }
-                        unshift @{$failed{$itype}}, $ref;
+                        splice( @{$ref->{events}}, 0, $num_of_events - $num_of_unsent );
+                        unshift @{$failed{$itype}}, $ref; 
                         last;
                     }
                 }
@@ -641,19 +680,23 @@ sub run_log_shipper {
             # is set to now, so the sleep value should be 0.
             $time = Time::HiRes::gettimeofday();
             $self->log->debug("pulled", scalar @$lines, "lines from input type $itype path $ipath");
+			$self->log->info("pulled", scalar @$lines, "lines from input type $itype path $ipath");
 
-            # Process each event and store each event by the output type.
-            my (%prepared_events, %lines_by_type);
+            # Process each line to event and store each event by the output type.
+            my %prepared_events;
             while (my $line = shift @$lines) {
                 my ($otype, $event) = $self->prepare_message($input, $line)
                     or next;
                 push @{$prepared_events{$otype}}, $event;
-                push @{$lines_by_type{$otype}}, $line;
             }
+         
+            $self->log->info("prepared events for shipment to output");
 
+			# iterate over output types and send events to output
             foreach my $otype (keys %prepared_events) {
                 my @outputs;
 
+				# find which outputs are registered for this otype
                 foreach my $ot ($otype, "*") {
                     if (exists $outputs->{$ot}) {
                         push @outputs, @{$outputs->{$ot}};
@@ -668,31 +711,38 @@ sub run_log_shipper {
                     next;
                 }
 
+				# loop over outputs and ship array of events
                 my $events = $prepared_events{$otype};
-
                 foreach my $output (@outputs) {
-                    for (my $i=0; $i <= $#{$events}; $i++) {
-                        if (!$output->push($events->[$i])) {
-                            my $left  = [ @{$lines_by_type{$otype}}[$i..$#{$events}] ];
-                            my $count = $#{$events} - $i;
-                            my $bytes = length join("", @$left);
-                            $self->log->error(
-                                "output $otype returns an error -",
-                                "stashing $count lines with $bytes bytes"
-                            );
-                            push @{$failed{$itype}}, {
-                                type   => $otype,
-                                output => $output,
-                                lines  => $left,
-                            };
-                            last;
-                        } else {
-                            $count_lines += 1;
-                            $count_bytes += length $lines_by_type{$otype}[$i];
-                            $self->log->debug("wrote event $i/$#{$events} to output $otype");
-                        }
+                    my $num_of_unsent  = 0;
+                    my $num_of_events = scalar @{$events};
+                
+                    $num_of_unsent = $self->send_events_to_output($output, $events, $otype);
+
+                    if ($num_of_unsent == 0) {
+                        $self->log->info( "output $otype shiped $num_of_events event" );
                     }
+
+                    # If it wasn't possilbe to ship all events then the
+                    # output returns an error. In this case the output
+                    # is stored back to the %failed hash.
+                    if ($num_of_unsent > 0 ) {
+                            $self->log->error(
+                                "output $otype returns an error ",
+                                "push $num_of_unsent event(s) to stash"
+                            );
+                            
+		                       	push @{$failed{$itype}}, {
+                                	type   => $otype,
+                                	output => $output,
+                                	events  => [ @{$events}[($num_of_events-$num_of_unsent)..($num_of_events-1)] ],
+                            	};
+                    }
+                    
+                    
                 }
+                # all events for this output type where shipped, continue to the next output type
+                
             }
         }
 
@@ -710,12 +760,7 @@ sub prepare_message {
     my ($event, $type, $timestamp);
     my $hostname = $self->config->{hostname};
 
-    my ($type_alias, $tags_alias, $fields_alias) = $self->config->{oldlogstashjson}
-        ? ('@type', '@tags', '@fields')
-        : ('type', 'tags', 'fields');
-
-    $self->log->debug("prepare message for input type $input->{type} path $input->{path}");
-    $self->log->debug("event: $line");
+    my ($type_alias, $tags_alias, $fields_alias) = ('type', 'tags', 'fields');
 
     if ($input->{format} eq "json") {
         eval { $event = $self->json->decode($line) };
@@ -727,58 +772,48 @@ sub prepare_message {
         $event->{$type_alias} ||= $input->{type};
         push @{$event->{$tags_alias}}, @{$input->{tags}};
         foreach my $field (keys %{$input->{add_field}}) {
-            if ($self->config->{oldlogstashjson}) {
-                $event->{$fields_alias}->{$field} = $input->{add_field}->{$field};
-            } else {
                 $event->{$field} = $input->{add_field}->{$field};
-            }
         }
     } elsif ($input->{format} eq "plain") {
         my ($seconds, $microseconds) = Time::HiRes::gettimeofday();
 
-        $timestamp = POSIX::strftime("%Y-%m-%dT%H:%M:%S%z", localtime($seconds));
-        $timestamp =~ s/(\d{2})(\d{2})\z/$1:$2/;
-        # Fix cases where TZ offset is without sign,
-        # as example "2013-02-04T18:05:1400:00"
-        $timestamp =~ s/(\d{2})(\d{2}:)/$1+$2/;
-        # Hack for Perl 5.8.3 with POSIX 1.07, where strftime
-        # %Y-%m-%dT%H:%M:%S%z returns 2013-02-04T17:02:41UTC
-        $timestamp =~ s/UTC\z/Z/;
-
-        if ($self->config->{milliseconds} || !$self->config->{oldlogstashjson}) {
-            if (length $microseconds < 3) {
-                $microseconds .= "0" x (3 - length $microseconds);
-            }
-            $microseconds =~ s/^(\d\d\d).*/$1/;
-            $timestamp =~ s/\+/.$microseconds+/;
+		# cache timestampe (in case of event bursts)
+        if (defined $self->{seconds} && $seconds == $self->{seconds}) {
+        	$timestamp = $self->{timestamp};
+        } else {
+        	$self->{seconds} = $seconds;
+        	$timestamp = POSIX::strftime("%Y-%m-%dT%H:%M:%S", gmtime($seconds)) . "." . substr($microseconds,0,3) . "Z";      	
+        	$self->{timestamp} = $timestamp;
         }
 
-        if ($self->config->{oldlogstashjson}) {
-            $event = {
-                '@timestamp'   => $timestamp,
-                '@source'      => "file://" . $hostname . $input->{path},
-                '@source_host' => $hostname,
-                '@source_path' => $input->{path},
-                '@type'        => $input->{type},
-                '@fields'      => $input->{add_field},
-                '@tags'        => $input->{tags},
-                '@message'     => $line,
-            };
-        } else {
-            $event = {
-                '@version'    => 1,
-                '@timestamp'  => $timestamp,
-                'source'      => "file://" . $hostname . $input->{path},
-                'source_host' => $hostname,
-                'source_path' => $input->{path},
-                'type'        => $input->{type},
-                'tags'        => $input->{tags},
-                'message'     => $line,
-            };
+		# plain input can be a simple text line or perl hash
+        	if (ref $line eq "SCALAR") {
+	            $event = {
+    	            '@version'    => 1,
+        	        '@timestamp'  => $timestamp,
+            	    'source'      => "file://" . $hostname . $input->{path},
+                	'host' 		  => $hostname,
+	                'file' 		  => $input->{path},
+    	            'type'        => $input->{type},
+        	        'tags'        => $input->{tags},
+            	    'line'     	  => $line, # "Line" is obligatory element!!!
+            	};
+            } else {
+	            $event = $line;
+    	        $event->{'@version'}    = 1;
+        		$event->{'@timestamp'}  = $timestamp;
+            	$event->{"source"}      = "file://" . $hostname . $input->{path} unless $event->{"source"} ;
+            	$event->{"host"} 		= $hostname unless $event->{"host"};
+	            $event->{"file"} 		= $input->{path} unless $event->{"file"};
+    	        $event->{"type"}        = $input->{type} unless $event->{"type"};
+        	    $event->{"tags"}        = $input->{tags} unless $event->{"tags"};
+            	
+            }
+
             foreach my $key (%{$input->{add_field}}) {
                 $event->{$key} = $input->{add_field}->{$key};
             }
-        }
+    
     };
 
     if ($input->{__add_field}) {
@@ -787,7 +822,8 @@ sub prepare_message {
         }
     }
 
-    return ($event->{$type_alias}, $self->json->encode($event));
+	# return event as PERL object
+    return ($event->{$type_alias}, $event);
 }
 
 sub log_watch {
@@ -962,16 +998,6 @@ sub validate_config {
             type => Params::Validate::SCALAR,
             default => 100,
         },
-        milliseconds => {
-            type => Params::Validate::SCALAR,
-            default => "no",
-            regex => qr/^(?:yes|no|0|1)\z/,
-        },
-        oldlogstashjson => {
-            type => Params::Validate::SCALAR,
-            default => "no",
-            regex => qr/^(?:yes|no|0|1)\z/,
-        },
         hostname => {
             type => Params::Validate::SCALAR,
             default => Sys::Hostname::hostname(),
@@ -995,10 +1021,10 @@ sub validate_config {
             type => Params::Validate::SCALAR,
             regex => qr/^\d+\z/,
             default => 5,
-        },
+        },       
     });
 
-    foreach my $key (qw/benchmark milliseconds oldlogstashjson/) {
+    foreach my $key (qw/benchmark/) {
         if ($options{$key} eq "no") {
             $options{$key} = 0;
         }
@@ -1051,7 +1077,7 @@ sub validate_agent_config {
             type => Params::Validate::SCALAR,
             regex => qr/^\d+\z/,
             default => 0,
-        },
+        },        
     });
 
     if ($options{format} eq "json_event") {
@@ -1086,17 +1112,10 @@ sub validate_agent_config {
 
             # The code generation. I'm sorry that it's a bit unreadable.
             my $func = "sub { my (\$e) = \@_; if (defined \$e->{'$ref->{field}'} && \$e->{'$ref->{field}'} =~ m!$ref->{match}!) { ";
-            if ($self->config->{oldlogstashjson}) {
-                $func .= "\$e->{'\@fields'}->{'$field'} = \"$ref->{concat}\"; }";
-                if (defined $ref->{default}) {
-                    $func .= " else { \$e->{'\@fields'}->{'$field'} = '$ref->{default}'; } ";
-                }
-            } else {
                 $func .= "\$e->{'$field'} = \"$ref->{concat}\"; }";
                 if (defined $ref->{default}) {
                     $func .= " else { \$e->{'$field'} = '$ref->{default}'; } ";
                 }
-            }
             $func .= "}";
 
             # Eval the code.
@@ -1115,7 +1134,7 @@ sub validate_agent_config {
             push @{$options{tags}}, $tag;
         }
     }
-
+    
     return \%options;
 }
 

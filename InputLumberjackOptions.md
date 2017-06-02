@@ -4,6 +4,9 @@
 
 Listen on TCP socket and receive data via TLS using lumberjack protocol.
 (see lumberjack protocol definition https://github.com/elasticsearch/logstash-forwarder/blob/master/PROTOCOL.md)
+Only version 1 of Lumberjack protocol is supported.
+
+It is possible to use logstash-forwarder to send messages to Awesant Lumberjack input.
 
 ## Options
 
