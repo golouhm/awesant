@@ -100,8 +100,14 @@ forward the data to the outputs.
 
 =head2 prepare_message
 
-Each log line is passed to C<prepare_message> and a nice formatted
-JSON string is returned, ready for Logstash.
+Each log line is passed to C<prepare_message> and which adds additional
+fields and returns hash ready for shipment to output
+
+=head2 send_events_to_output
+
+Sends events prepared by prepare_message to one output.
+If output supports batch sending it pushes events in batches of window_size.
+Otherwise pushes events to output one by one.
 
 =head2 log_watch
 
@@ -491,7 +497,7 @@ sub send_events_to_output {
     # if not defined default is 1
     my $output_windows_size = $output->{max_window_size};
     if (!defined $output_windows_size) {
-        $output_windows_size = 1;
+        $output_windows_size = -1;
     }
                           
     my $num_of_events = $#{$events}+1;
@@ -499,8 +505,9 @@ sub send_events_to_output {
     $self->log->info( "Output $otype using $output preparing to ship $num_of_events event(s)");
     while ($num_of_events > $num_of_shipped ) {   
     	# for compatibility with older outputs don't push windows size 1 as array 
-    	if ($output_windows_size == 1) {
-        	if ( !$output->push($events->[$num_of_shipped]) ) {
+    	# encode as json string
+    	if ($output_windows_size == -1) {
+        	if ( !$output->push($self->json->encode($events->[$num_of_shipped])) ) {
 				$self->log->error("Output $otype using $output returns an error ");
                 last;
             }
