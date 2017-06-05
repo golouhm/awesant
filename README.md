@@ -10,29 +10,25 @@ Look at https://download.bloonix.de/sources or https://download.bloonix.de/repos
 
 ## Plugins and Options
 
-Global options for each plugin:
-
-* <https://github.com/bloonix/awesant/blob/master/GlobalOptions.md>
+[Global options for each plugin](GlobalOptions.md)
 
 Currently supported inputs:
 
-* File: <https://github.com/bloonix/awesant/blob/master/InputFileOptions.md>
-* File Multiline: <https://github.com/bloonix/awesant/blob/master/InputFileMultilineOptions.md>
-* Oracle Alert Log: <https://github.com/bloonix/awesant/blob/master/InputOracleAlertLogOptions.md>
-* Socket: <https://github.com/bloonix/awesant/blob/master/InputSocketOptions.md>
-* Lumberjack: <https://github.com/bloonix/awesant/blob/master/InputLumberjackOptions.md>
+* [File](InputFileOptions.md)
+* [File Multiline](InputFileMultilineOptions.md)
+* [Oracle Alert Log](InputOracleAlertLogOptions.md)
+* [Socket](InputSocketOptions.md)
+* [Lumberjack](InputLumberjackOptions.md)
 
 Currently supported outputs:
 
-* Redis: <https://github.com/bloonix/awesant/blob/master/OutputRedisOptions.md>
-* RabbitMQ: <https://github.com/bloonix/awesant/blob/master/OutputRabbitmqOptions.md>
-* Screen: <https://github.com/bloonix/awesant/blob/master/OutputScreenOptions.md>
-* Socket: <https://github.com/bloonix/awesant/blob/master/OutputSocketOptions.md>
-* Lumberjack: <https://github.com/bloonix/awesant/blob/master/OutputLumberjackOptions.md>
+* [Redis](OutputRedisOptions.md)
+* [RabbitMQ](OutputRabbitmqOptions.md)
+* [Screen](OutputScreenOptions.md)
+* [Socket](OutputSocketOptions.md)
+* [Lumberjack](OutputLumberjackOptions.md)
 
-Configuration syntax:
-
-<https://github.com/bloonix/awesant/blob/master/ConfigSyntax.md>
+[Configuration syntax](ConfigSyntax.md)
 
 ## Pre-installation
 
