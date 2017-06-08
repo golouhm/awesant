@@ -20,17 +20,23 @@ Oracle Alert XML log files as input. Log file rotation is supported, but note th
 you should configure delayed compression for log files.
 
 Input XML structure of alert log:
+```
         <msg time='2016-01-01T05:09:20.742+01:00' org_id='oracle' comp_id='rdbms'
          type='UNKNOWN' level='16' host_id='my.dot.com' pid='5887'
     	host_addr='3.4.5.6'>
         <txt>opidrv aborting process L002 ospid (5887) as a result of ORA-65535
         </txt>
         </msg>
+```
 is converted to JSON msg in the following format:
+```
 {"org_id":"oracle","host_addr":"3.4.5.6","time":"2016-01-01T05:09:20.742+01:00","comp_id":"rdbms","level":"16","type":"UNKNOWN","host_id":"my.dot.com","pid":"5887","txt":"opidrv aborting process L002 ospid (5887) as a result of ORA-65535\n "}
+```
 
 Also the TNS messages spread across multiple XML messages are joined together into single message:
+```
 {"txt":"\n***********************************************************************\n \nFatal NI connect error 12170.\n \n  VERSION INFORMATION:\nTNS for Linux: Version 11.2.0.4.0 - Production\nOracle Bequeath NT Protocol Adapter for Linux: Version 11.2.0.4.0 - Production\nTCP/IP NT Protocol Adapter for Linux: Version 11.2.0.4.0 - Production\n   Time: 02-JAN-2016 09:55:23\n   Tracing not turned on.\n   Tns error struct:\n     ns main err code: 12535\n     \n TNS-12535: TNS:operation timed out\n     ns secondary err code: 12560\n     nt main err code: 505\n     \n TNS-00505: Operation timed out\n     nt secondary err code: 110\n     nt OS err code: 0\n   Client address: (ADDRESS=(PROTOCOL=tcp)(HOST=1.2.3.4)(PORT=25397))\n ","host_id":"example.com","type":"UNKNOWN","level":"16","comp_id":"rdbms","time":"2016-01-02T09:55:23.995+01:00","host_addr":"4.5.6.7","org_id":"oracle"} 
+```
 
 =head1 OPTIONS
 

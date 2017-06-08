@@ -16,12 +16,13 @@ Currently supported inputs:
 
 * [File](InputFileOptions.md)
 * [File Multiline](InputFileMultilineOptions.md)
-* [Oracle Alert Log](InputOracleAlertLogOptions.md)
+* [Oracle Alert Log](InputOracleAlertLogXmlOptions.md)
 * [Socket](InputSocketOptions.md)
 * [Lumberjack](InputLumberjackOptions.md)
 
 Currently supported outputs:
 
+* [File](OutputFileOptions.md)
 * [Redis](OutputRedisOptions.md)
 * [RabbitMQ](OutputRabbitmqOptions.md)
 * [Screen](OutputScreenOptions.md)

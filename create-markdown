@@ -3,6 +3,7 @@ use strict;
 use warnings;
 
 my @modules = qw(
+    Awesant::Output::File
     Awesant::Output::Lumberjack
     Awesant::Output::Redis
     Awesant::Output::Screen
@@ -26,6 +27,8 @@ foreach my $mod (@modules) {
     ($description, $content) = $content =~ /.+=head1\sDESCRIPTION\n+(.+)=head1\sOPTIONS\s*\n(.+)=head1\sMETHODS.+/s;
     $content =~ s/=head1/##/g;
     $content =~ s/=head2/###/g;
+    $content =~ s/=head3/####/g;    
+    $content =~ s/=head4/####/g;    
     my $readme = "${mod}Options.md";
     $readme =~ s/:://g;
     $readme =~ s/^Awesant//;

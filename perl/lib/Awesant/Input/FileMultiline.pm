@@ -85,9 +85,11 @@ This mode groups multiline messages together according the following rule:
   multiline_indented_group is read or 10 seconds have passed since the last read  
 
 Parameters:
-    multiline_prefix = regular expression eg "\\*{71}"
-    multiline_indented_group = regular expression eg "TNS.*|Fatal NI connect error.*"
-	multiline_drop_garbage = yes|no|1|0
+```
+multiline_prefix = regular expression eg "\\*{71}"
+multiline_indented_group = regular expression eg "TNS.*|Fatal NI connect error.*"
+multiline_drop_garbage = yes|no|1|0
+```
 
 Comment:
 This mode was explicitly crafted for parsing Oracle alertlog files which includes sqlnet
@@ -102,18 +104,23 @@ This mode groups multiline messages together according the following rule:
 - if multiline_drop_garbage was specified non matching lines are skipped
    
 Parameters:
+```
 	multiline_prefix = regular expression eg "<Msg.*"
 	multiline_garbage = regular expression eg "TNS.*"
 	multiline_drop_garbage = yes|no|1|0
+```
 
 =head3 prefix-suffix
 This mode groups multiline messages together according the following rule:
 - multiline message starts when multiline_prefix is found
 - multiline message ends when multiline_suffix is found
+- if multiline_drop_garbage was specified non matching lines are skipped
 
-	multiline_prefix
-	multiline_suffix
-	multiline_drop_garbage
+```
+	multiline_prefix = regular expression eg "<msg.*"
+	multiline_suffix = regular expression eg "<\/msg>"
+	multiline_drop_garbage = yes|no|1|0
+```
 
 =head1 METHODS
 
