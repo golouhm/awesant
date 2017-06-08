@@ -794,7 +794,7 @@ sub prepare_message {
         }
 
 		# plain input can be a simple text line or perl hash
-        	if (ref $line eq "SCALAR") {
+        	if (not ref $line) {
 	            $event = {
     	            '@version'    => 1,
         	        '@timestamp'  => $timestamp,
