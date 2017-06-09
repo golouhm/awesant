@@ -76,17 +76,20 @@ sub new {
     my $opts = $class->validate(@_);
     my $self = bless $opts, $class;
 
+    my $fh = undef;
+    
     $self->{log} = Log::Handler->get_logger("awesant");
 
     if ($self->{openmode} eq "append") {
-        open my $fh, ">>", $self->{filename};
+        open $fh, ">>", $self->{filename};
     } elsif ($self->{openmode} eq "new") {
-        open my $fh, ">", $self->{filename};
+        open $fh, ">", $self->{filename};
     } else {
         $self->log->error("Unknown openmode $self->{openmode} for $self->{filename}");
         die;
     }
-
+    
+    $self->{fh} = $fh;
     $self->log->notice("$class initialized");
 
     return $self;
