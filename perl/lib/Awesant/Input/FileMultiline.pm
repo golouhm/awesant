@@ -27,12 +27,23 @@ you should configure delayed compression for log files.
 
 =head2 path
 
-The path to the log file. Single file can be listed here
+The path to the log file. Multiple paths can be set as comma separated list.
 
     input {
-        file {
+        FileMultiline {
             type alertlog
             path /inputs/alert.log
+            ...
+        }
+    }
+    
+Wildcards can also be used for path:
+
+    input {
+        FileMultiline {
+            type alertlog
+            path /u01/app/oracle/diag/rdbms/*/*/alert/log.xml
+            ...
         }
     }
 
@@ -41,10 +52,9 @@ The path to the log file. Single file can be listed here
 Define regexes to skip events.
 
     input {
-        file {
-            type php-error-log
-            path /var/log/php/error.log
-            skip PHP (Notice|Warning)
+        FileMultiline {
+            type alertlog
+            path /u01/app/oracle/diag/rdbms/*/*/alert/log.xml
             skip ^any event$
         }
     }
@@ -64,6 +74,16 @@ Please note that this feature is experimental and does not keep log file
 rotations.
 
 =head2 multiline_mode
+
+Choose one of the available multiline modes.
+
+    input {
+        FileMultiline {
+            type alertlog
+            path /u01/app/oracle/diag/rdbms/*/*/alert/log.xml
+            multiline_mode indented|indented-group|prefix-garbage|prefix-suffix
+        }
+    }
 
 =head3 indented
 

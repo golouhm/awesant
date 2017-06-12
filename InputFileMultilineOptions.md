@@ -9,12 +9,21 @@ you should configure delayed compression for log files.
 
 ### path
 
-The path to the log file. Single file can be listed here
+The path to the log file. Multiple paths can be set as comma separated list.
 
     input {
         file {
             type alertlog
             path /inputs/alert.log
+        }
+    }
+    
+Wildcards can also be used for path:
+
+    input {
+        file {
+            type alertlog
+            path /u01/app/oracle/diag/rdbms/*/*/alert/log.xml
         }
     }
 

@@ -42,26 +42,54 @@ Also the TNS messages spread across multiple XML messages are joined together in
 
 =head2 path
 
-The path to the log file. Single file can be listed here
+The path to the log file. Multiple paths can be set as comma separated list.
 
     input {
-        file {
+        OracleAlertLogXml {
             type alertlog
             path /u01/app/oracle/diag/rdbms/orcl/ORCL/alert/log.xml
         }
     }
+    
+Wildcards can also be used which is ideal if multiple Oracle instances are running
+on the same server.
+
+    input {
+        OracleAlertLogXml {
+            type alertlog
+            path /u01/app/oracle/diag/rdbms/*/*/alert/log.xml
+        }
+    }
+    
+Oracle listener logs have the same formating:
+
+    input {
+    	OracleAlertLogXml {
+        	type listenerlogxml
+        	path /u01/app/oracle/diag/tnslsnr/*/*/alert/log.xml
+    	}
+    }
+
 
 =head2 skip
 
 Define regexes to skip Oracle alert messages.
 
     input {
-        file {
+        OracleAlertLogXml {
             type alertlog
-            path /u01/app/oracle/diag/rdbms/orcl/ORCL/alert/log.xml
-            skip ORA-0404(0|1)
-            skip ^ORA-00600
+            path /u01/app/oracle/diag/rdbms/*/*/alert/log.xml
+        	skip "^$"  <---- skip empty messages
         }
+    }
+    
+    input {
+    	OracleAlertLogXml {
+        	type listenerlogxml
+        	path /u01/app/oracle/diag/tnslsnr/*/*/alert/log.xml
+        	skip "^$"
+        	skip "service_update"  <---- lots of them and of no real use
+    	}
     }
 
 Lines that match the regexes will be skipped.
@@ -71,9 +99,9 @@ Lines that match the regexes will be skipped.
 Define regexes to filter Oracle alert messages.
 
     input {
-        file {
+        OracleAlertLogXml {
             type alertlog
-            path /u01/app/oracle/diag/rdbms/orcl/ORCL/alert/log.xml
+            path /u01/app/oracle/diag/rdbms/*/*/alert/log.xml
             grep ORA-0404(0|1)
             grep ^ORA-00600
         }

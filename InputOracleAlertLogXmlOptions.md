@@ -29,12 +29,22 @@ Also the TNS messages spread across multiple XML messages are joined together in
 
 ### path
 
-The path to the log file. Single file can be listed here
+The path to the log file. Multiple paths can be set as comma separated list.
 
     input {
         file {
             type alertlog
             path /u01/app/oracle/diag/rdbms/orcl/ORCL/alert/log.xml
+        }
+    }
+    
+Wildcards can also be used which is ideal if multiple Oracle instances are running
+on the same server.
+
+    input {
+        file {
+            type alertlog
+            path /u01/app/oracle/diag/rdbms/*/*/alert/log.xml
         }
     }
 

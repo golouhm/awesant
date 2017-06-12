@@ -343,7 +343,7 @@ sub load_input {
             # The file input can only process a single file, but if a wildcard
             # is used within the path or a comma separated list of files is passed
             # then it's necessary to create an input object for each file.
-            if ($input_type eq "file") {
+            if (lc $input_type eq "file" or lc $input_type eq "filemultiline" or lc $input_type eq "oraclealertlogxml") {
                 if ($input_group->{workers} && $input_group->{workers} > 1) {
                     $self->log->info("set workers for input $input_type to 1");
                     $input_group->{workers} = 1;
