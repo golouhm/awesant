@@ -196,6 +196,7 @@ use Fcntl qw( :flock O_WRONLY O_CREAT O_RDONLY );
 use Params::Validate qw();
 use Log::Handler;
 use JSON;
+use HTML::Entities; # to decoded HTML entities in log.xml
 
 sub  trim  { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s };
 sub  rtrim { my $s = shift; $s =~ s/\s+$//g; return $s };
@@ -645,8 +646,8 @@ sub convert_xmlalert_to_hash {
  	$alertlog_json{"host"} = delete $alertlog_json{"ora.host_id"};
  	$alertlog_json{"file"} = $self->{path};
  	
- 	# add text field
- 	$alertlog_json{"line"} = rtrim(substr($msg, $txt_start, $txt_end - $txt_start +1 ));
+    # add text field, decode HTML entities on the fly
+    $alertlog_json{"line"} = decode_entities(rtrim(substr($msg, $txt_start, $txt_end - $txt_start +1 )));
 		
 	return \%alertlog_json;
 }

@@ -51,6 +51,8 @@ You need to install IO::Socket::SSL
 
 If you want to transport logs to RabbitMQ you need to install Net::RabbitMQ.
 
+You need to install HTML::Entities and HTML::Parser to use Oracle Alert Log plugin (we need to decode HTML entities inside xml alert logs).
+
 You can install the packages with your favorite package manager, or from CPAN.
 
     cpan -i Log::Handler
