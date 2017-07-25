@@ -324,6 +324,7 @@ sub push {
 
     # bail out, msg transmit was interrupted
     if (!defined $self->{sock}) {
+	  $self->log->error("Transmit was interrupted");
       return undef;
     }
     
@@ -341,9 +342,7 @@ sub push {
             		$self->log->debug("got response from server $self->{host}:$self->{port}: $protocol_header - $ack_no");
         		}
     		} else {
-        		if ($self->log->is_debug) {
-            		$self->log->debug("incorrect response length from server $self->{host}:$self->{port}: " . length($response));
-        		}
+            	$self->log->error("Incorrect response length from server $self->{host}:$self->{port}: " . length($response) . ". Expecting length 6 bytes.");
         		return undef;
     		}
 
@@ -352,7 +351,7 @@ sub push {
       			    $self->{last_ack} = $self->{msg_sequence};
     	        	return 1;
 	        	} else {
-            		$self->log->error("incorrect acknowledge sequence from server: $ack_no");
+            		$self->log->error("Incorrect acknowledge sequence from server: $ack_no. Expecting sequence " . $self->{msg_sequence});
         		}
     		} else {
         		$self->log->error("incorrect response header from server: $protocol_header");

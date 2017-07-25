@@ -508,7 +508,7 @@ sub send_events_to_output {
     	# encode as json string
     	if ($output_windows_size == -1) {
         	if ( !$output->push($self->json->encode($events->[$num_of_shipped])) ) {
-				$self->log->error("Output $otype using $output returns an error ");
+				$self->log->error("Output $otype using " . ref($output) . " returns an error ");
                 last;
             }
             $self->log->info( "Output $otype using $output shiped 1 event");
@@ -517,7 +517,7 @@ sub send_events_to_output {
         # number of events is less then or equal to max_window_size	                		
         } elsif ($#{$events}+1 <= $output_windows_size ) {    
             if ( !$output->push( [@{$events}] )) {
-				$self->log->error("Output $otype using $output returns an error");
+				$self->log->error("Output $otype using " . ref($output) . " returns an error");
                 last;
             }
             $self->log->info( "Output $otype using $output shiped " . ($#{$events} + 1) . " event(s) (num of shiped events is less or equal to max windows size)");
@@ -526,7 +526,7 @@ sub send_events_to_output {
         # number of events is more then max_window_size	   	
         } else {
             if ( !$output->push([@{$events}[$num_of_shipped..$output_windows_size-1]] ) ) {
-				$self->log->error("Output $otype using $output returns an error");
+				$self->log->error("Output $otype using " . ref($output) . " returns an error");
                 last;
             }
             $self->log->info( "Output $otype using $output shiped $output_windows_size events equal to windows size");

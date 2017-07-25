@@ -432,7 +432,6 @@ sub pull {
 						else {					
 							#$self->log->debug(encode_json \%msg);
 							if ($self->check_event($msg{"line"})) {
-#								push @$lines, encode_json \%msg;
 								push @$lines, \%msg;
 							}
 						}
@@ -442,7 +441,6 @@ sub pull {
 						if ( $msg{"line"} =~ /^\s*\*{71}/ ) {	
 #						 	$self->log->debug("Start of another tns multiline");
 							if ($self->check_event($tns_multiline_buffer->{"line"})) {
-#								push @$lines, encode_json $tns_multiline_buffer;
 								push @$lines, $tns_multiline_buffer;
 							}						 	
 							$tns_multiline_buffer = \%msg;
@@ -458,7 +456,6 @@ sub pull {
 #							$self->log->debug("End of tns multiline");
 							$is_tns_multiline = 0;
 							if ($self->check_event($tns_multiline_buffer->{"line"})) {
-#								push @$lines, encode_json $tns_multiline_buffer;
 								push @$lines, $tns_multiline_buffer;
 							}								
 						}
@@ -487,12 +484,10 @@ sub pull {
 		my %msg = %{$self->convert_xmlalert_to_hash($multiline_buffer)};
 		if (!$is_tns_multiline) {
 			if ($self->check_event($msg{"line"})) {
-#				push @$lines, encode_json \%msg;
 				push @$lines, \%msg;
 			}	
 		} else {
 			if ($self->check_event($tns_multiline_buffer->{"line"})) {
-#				push @$lines, encode_json $tns_multiline_buffer;
 				push @$lines, $tns_multiline_buffer;
 			}
 		}
