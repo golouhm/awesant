@@ -398,6 +398,10 @@ sub load_input {
 sub load_module {
     my ($self, $io, $type) = @_;
 
+    # localize SIG __DIE__ due to problems when loading XSLoader.pm
+    # Can't locate object method "tid" via package "threads" at /usr/share/perl5/XSLoader.pm line 92.
+    local $SIG{__DIE__};	
+	
     # output { redis { } }
     #   = Awesant::Output::Redis
     my $module = join("::",
