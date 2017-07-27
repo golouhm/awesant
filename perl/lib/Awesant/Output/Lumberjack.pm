@@ -276,6 +276,7 @@ sub disconnect {
 
     if ($socket) {
         close $socket;
+		$self->{sock} = undef;
     }
 }
 
@@ -341,7 +342,10 @@ sub push {
 	        	if ($self->log->is_debug) {
             		$self->log->debug("got response from server $self->{host}:$self->{port}: $protocol_header - $ack_no");
         		}
-    		} else {
+    		} elsif (length($response) == 0) {
+				$self->log->error("Pipeline stalled on server $self->{host}:$self->{port}");
+				return undef;
+			} else {
             	$self->log->error("Incorrect response length from server $self->{host}:$self->{port}: " . length($response) . ". Expecting length 6 bytes.");
         		return undef;
     		}
@@ -399,11 +403,14 @@ sub readACK {
         # it should be exactly 6 bytes long
         my $n = sysread( $sock, $response, 16384);
 
+        alarm(0);
+
         if ( !defined($n) ) {
             # Resource temporarily unavailable; the call might work if you try again later. 
             # The macro EWOULDBLOCK is another name for EAGAIN
         	if ($! != EWOULDBLOCK && $! != EAGAIN) {
         		$self->log->error($SSL_ERROR);
+				$self->disconnect();
         		return undef;
         	};
         	
@@ -415,17 +422,21 @@ sub readACK {
         	# SSL_WANT_WRITE means "wait for the socket to be writeable, then call this function again."
         	if ( $SSL_ERROR == SSL_WANT_WRITE ) {
         		# retry read once I can write
+        		$self->log->debug("retry sysread once I can write");
+				$self->disconnect();
         		return undef;
         	} else {
         		# retry
+				$self->log->debug("retry sysread");
+				$self->disconnect();
         		return undef;
         	}
         } elsif ( !$n  ) {
 			$self->log->debug( "EOF" );
+			$self->disconnect();
 			return undef;
 		} 
         
-        alarm(0);
     }; 
     
     return $response;  
