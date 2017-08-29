@@ -36,11 +36,22 @@ It's possible to set a comma separated list of failover hosts.
 
 Default: 127.0.0.1
 
+All hosts are treated as equals and round-robin is used when currently active host becomes
+unavailable. Use host_primary to prefer one host over the other.
+
+
 =head2 port
 
 The port number where the lumberjack server is listening.
 
 Default: no default
+
+= head2 host_primary (optional)
+
+A string specifying which host is the primary. The primary host will always be active
+while it is available. Only when primary host is not available will alternate hosts
+be used. This is useful when one host is preferred over another.
+The primary host becomes the active host whenever it comes back up.
 
 =head2 ssl_ca_file
 
@@ -190,12 +201,78 @@ sub new {
     return $self;
 }
 
+sub connect_to_host {
+    my ($self, $target_host) = @_;
+
+        my $sock;
+
+        # Set the PeerAddr to the host that we a try to connect.
+    $self->{sockopts}->{PeerAddr} = $target_host;
+
+        # Set the time of connect atemtp
+        $self->{last_connect_atempt} = Time::HiRes::time();
+
+        # We don't want that the daemon dies if the connection
+        # was not successful. The eval block is also great to
+        # break out on errors.
+        $self->log->notice("connect to server $target_host");
+        eval {
+                local $SIG{ALRM} = $self->{__timeout_sub};
+                local $SIG{__DIE__} = $self->{__alarm_sub};
+                alarm($self->{connect_timeout});
+                $sock = IO::Socket::SSL->new(%{$self->{sockopts}});
+                die "error=$!, ssl_error=$SSL_ERROR" unless $sock;
+                alarm(0);
+        };
+
+        # If no error message exists and the socket is created,
+        # then the connection was successful. In this case we
+        # just return
+        if (!$@ && $sock) {
+                $self->{unsuccessful_conn_count} = 0;
+
+                $sock->autoflush(1);
+                $sock->blocking(1);
+                $self->log->notice("connected to server $target_host:$self->{port}");
+
+                close($self->{sock}) if $self->{sock};
+                $self->{sock} = $sock;
+
+                return 1;
+        }
+
+        # At this point the connection was not successful.
+        if ($@) {
+                $self->log->error($@);
+        }
+
+        $self->log->error("unable to connect to server $target_host");
+        $self->{unsuccessful_conn_count}++;
+
+        return 0;
+}
+
 sub connect {
     my $self = shift;
 
     # If the socket is still active, then just return true.
     # This works only if the sock is set to undef on errors.
     if ($self->{sock} && $self->{persistent}) {
+                if ($self->{host_primary} and $self->{host} ne $self->{host_primary})
+                {
+                        # Some additional logic to skip retries when primary log server is unreachable for longer periods
+                        if ($self->{unsuccessful_conn_count} > 50 and Time::HiRes::time() - $self->{last_connect_atempt} < 600 ) {
+                                $self->log->debug("Skipping reconnect to primary host for 10min due to way too many unseccessful connections to primary host");
+                                return 1;
+                        }  elsif ($self->{unsuccessful_conn_count} > 10 and Time::HiRes::time() - $self->{last_connect_atempt} < 60) {
+                                $self->log->debug("Skipping reconnect to primary host for 60s due to too many unseccessful connections to primary host");
+                                return 1;
+                        }
+                        # logic for primary host reselect
+                        if ($self->connect_to_host($self->{host_primary})) {
+                                $self->{host} = $self->{host_primary};
+                        }
+                }
           return 1;
     }
 
@@ -208,65 +285,39 @@ sub connect {
         sleep 60;
     }
 
-    my $module = $self->{sockmod};
-    my $port   = $self->{port};
+
+        # We have no active connection
+        # We always start from the first host in round-robin fashion
+        # a) do the round-robin from the last successful host (if host_primary is not defined)
+        # b) first connect to host_primary, then do the round-robin on the hosts list
+
+        if ($self->{host_primary} and $self->connect_to_host($self->{host_primary})) {
+                $self->{host} = $self->{host_primary};
+                return 1
+        }
+
     my $hosts  = $self->{hosts};
     my @order  = @$hosts;
-    my $sock;
-
     # Try to connect to the hosts in the configured order.
     while (my $host = shift @order) {
+                if (!$self->{host_primary}) {
         # Although the connection was successful, the host is pushed
         # at the end of the array. If the connection lost later, then
         # the next host will be connected.
         push @$hosts, shift @$hosts;
+                }
 
         # Set the currently used host to the object.
         $self->{host} = $host;
 
-        # Set the PeerAddr to the host that we a try to connect.
-        $self->{sockopts}->{PeerAddr} = $host;
-
-        # We don't want that the daemon dies if the connection
-        # was not successful. The eval block is also great to
-        # break out on errors.
-        $self->log->notice("connect to server $host:$port");
-        eval {
-            local $SIG{ALRM} = $self->{__timeout_sub};
-            local $SIG{__DIE__} = $self->{__alarm_sub};
-            alarm($self->{connect_timeout});
-            $sock = IO::Socket::SSL->new(%{$self->{sockopts}});
-            die "error=$!, ssl_error=$SSL_ERROR" unless $sock;
-            alarm(0);
-        };
-
-        # If no error message exists and the socket is created,
-        # then the connection was successful. In this case we
-        # just jump out of the loop.
-        if (!$@ && $sock) {
-            $self->{unsuccessful_conn_count} = 0;
-            last;
+                # skip primary host if found on hosts list
+                if ($self->{host_primary} and $host eq $self->{host_primary}) {
+                        next;
         }
 
-        # At this point the connection was not successful.
-        if ($@) {
-            $self->log->error($@);
-        }
-
-        $self->log->error("unable to connect to server $host:$port");
+                if ($self->connect_to_host($host)) { return 1 }
     }
 
-    # It's possible that no connection could be established to any host.
-    # If a connection could be established, then the socket will be
-    # stored to $self->{sock} and autoflush flag is set to the socket.
-    if ($sock) {
-        $sock->autoflush(1);
-        $sock->blocking(1);
-        $self->log->notice("connected to server $self->{host}:$self->{port}");
-        $self->{sock} = $sock;
-        return 1;
-    }
-    $self->{unsuccessful_conn_count}++;
     return undef;
 }
 
@@ -620,6 +671,10 @@ sub validate {
         port => {
             type => Params::Validate::SCALAR,
             default => 6379,
+        },
+        host_primary => {
+            type => Params::Validate::SCALAR,
+            optional => 1,
         },
         protocol_version => {
             type => Params::Validate::SCALAR,
