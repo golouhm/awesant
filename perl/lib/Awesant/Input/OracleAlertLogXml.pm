@@ -446,7 +446,7 @@ sub pull {
 							$tns_multiline_buffer = \%msg;
 						}
 						# continuation of the same tns message
-						elsif ( $msg{"line"} =~ /^\s.*|^TNS.*|^Fatal NI connect error.*/ ) {
+						elsif ( $msg{"line"} =~ /^\s.*|^$|^TNS.*|^Fatal NI connect error.*/ ) {
 #							$self->log->debug("Continuation of tns multiline");
 #							$self->log->debug($msg{"message"}	);
 							$tns_multiline_buffer->{"line"} .= $msg{"line"};
