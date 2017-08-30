@@ -387,10 +387,13 @@ sub pull {
 	my $is_tns_multiline = $self->{is_tns_multiline};
 	my $tns_multiline_buffer = $self->{tns_multiline_buffer};
 	
+	my $got_new_lines = 0;
     while (my $line = <$fhlog>) { 
 #    	$multiline_lastpos = tell ($fhlog);
     	$multiline_lastreadtime = Time::HiRes::gettimeofday() unless defined $multiline_lastreadtime;
-        
+        $got_new_lines = 1;
+
+		
         chomp $line;
 
         # typicall input message 
@@ -473,9 +476,11 @@ sub pull {
  	       last unless --$max_multiline_blocks;
     	}
 
+	$multiline_lastreadtime = Time::HiRes::gettimeofday() if $got_new_lines;
+
 
 	# Check if it's time to consider multiline msg complete (10 sec rule)
-    if ($multiline_status ne "find-start" and 
+    if (($multiline_status ne "find-start" or $is_tns_multiline)and 
     	defined $multiline_lastreadtime and
        	Time::HiRes::gettimeofday() - $multiline_lastreadtime > 10
        ) 
@@ -498,6 +503,8 @@ sub pull {
     	$multiline_lastreadtime = undef; 
     	$is_tns_multiline = 0;
     }
+	
+	if ($multiline_status eq "find-start")
 
 
     if ($self->{fhpos}) {
@@ -512,7 +519,6 @@ sub pull {
         $self->{reached_end_of_file}++;
     }
 
-    $multiline_lastreadtime = Time::HiRes::gettimeofday() unless not defined $multiline_lastreadtime;
     $self->{lastpos} = $lastpos;
 #	$self->{multiline_lastpos} = $multiline_lastpos;
 	$self->{multiline_lastreadtime} = $multiline_lastreadtime;
