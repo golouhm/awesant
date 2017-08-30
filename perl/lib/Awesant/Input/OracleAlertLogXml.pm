@@ -629,7 +629,7 @@ sub convert_xmlalert_to_hash {
 	# module='
 	# pid='19562
 #	my @attrs = split(/'\s+>?/, substr($msg, $attr_start, $attr_end - $attr_start ));
-    my %alertlog_json = map { (split /='/, "ora.".$_) } split /'\s+>?/, substr($msg, $attr_start, $attr_end - $attr_start );
+    my %alertlog_json = map { (split /='/, "ora.".$_, -1) } split /'\s+>?/, substr($msg, $attr_start, $attr_end - $attr_start );
 	
 	# construct hash with all the attribute elements 
 	# split attrs to extrace key and value
