@@ -429,6 +429,7 @@ sub pull {
 						if ( $msg{"line"} =~ /^\s*\*{71}/ ) {		
 #							$self->log->debug("Start of a new tns multiline");				    
 							$is_tns_multiline = 1;
+							$msg{"ora.type"} = "TNS";
 							$tns_multiline_buffer = \%msg;
 						} 
 						# plain simple alert log line
@@ -445,14 +446,15 @@ sub pull {
 #						 	$self->log->debug("Start of another tns multiline");
 							if ($self->check_event($tns_multiline_buffer->{"line"})) {
 								push @$lines, $tns_multiline_buffer;
-							}						 	
+							}
+							$msg{"ora.type"} = "TNS";
 							$tns_multiline_buffer = \%msg;
 						}
 						# continuation of the same tns message
 						elsif ( $msg{"line"} =~ /^\s.*|^$|^TNS.*|^Fatal NI connect error.*/ ) {
 #							$self->log->debug("Continuation of tns multiline");
 #							$self->log->debug($msg{"message"}	);
-							$tns_multiline_buffer->{"line"} .= $msg{"line"};
+							$tns_multiline_buffer->{"line"} .= "\n".$msg{"line"};
 						}
 						# end of tns multiline	
 						else {
