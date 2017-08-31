@@ -487,9 +487,9 @@ sub pull {
        	Time::HiRes::gettimeofday() - $multiline_lastreadtime > 10
        ) 
     {
-#        $self->log->debug("10 sec rule - flush multiline message buffer");
-		my %msg = %{$self->convert_xmlalert_to_hash($multiline_buffer)};
+        $self->log->debug("10 sec rule - flush multiline message buffer");
 		if (!$is_tns_multiline) {
+			my %msg = %{$self->convert_xmlalert_to_hash($multiline_buffer)};
 			if ($self->check_event($msg{"line"})) {
 				push @$lines, \%msg;
 			}	
@@ -498,17 +498,15 @@ sub pull {
 				push @$lines, $tns_multiline_buffer;
 			}
 		}
-    	push @$lines, $multiline_buffer;
+
     	$multiline_buffer = undef;
+    	$tns_multiline_buffer = undef;
     	$multiline_status = "find-start";    
     	$lastpos = tell ($fhlog);   
     	$multiline_lastreadtime = undef; 
     	$is_tns_multiline = 0;
     }
 	
-	if ($multiline_status eq "find-start")
-
-
     if ($self->{fhpos}) {
         seek($fhpos, 0, 0);
         printf $fhpos "%014d:%014d", $self->{inode}, $lastpos;
