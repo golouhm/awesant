@@ -38,6 +38,8 @@ Also the TNS messages spread across multiple XML messages are joined together in
 {"txt":"\n***********************************************************************\n \nFatal NI connect error 12170.\n \n  VERSION INFORMATION:\nTNS for Linux: Version 11.2.0.4.0 - Production\nOracle Bequeath NT Protocol Adapter for Linux: Version 11.2.0.4.0 - Production\nTCP/IP NT Protocol Adapter for Linux: Version 11.2.0.4.0 - Production\n   Time: 02-JAN-2016 09:55:23\n   Tracing not turned on.\n   Tns error struct:\n     ns main err code: 12535\n     \n TNS-12535: TNS:operation timed out\n     ns secondary err code: 12560\n     nt main err code: 505\n     \n TNS-00505: Operation timed out\n     nt secondary err code: 110\n     nt OS err code: 0\n   Client address: (ADDRESS=(PROTOCOL=tcp)(HOST=1.2.3.4)(PORT=25397))\n ","host_id":"example.com","type":"UNKNOWN","level":"16","comp_id":"rdbms","time":"2016-01-02T09:55:23.995+01:00","host_addr":"4.5.6.7","org_id":"oracle"} 
 ```
 
+Sometimes multiple TNS messages come interleaved and we have to extract them out in correct order.
+
 =head1 OPTIONS
 
 =head2 path
@@ -146,8 +148,8 @@ on the file system.
 
 =head2 pull(lines => $number)
 
-This methods reads the excepted number of lines or until the end of the
-file and returns the lines as a array reference.
+This methods reads the excepted number of messages or until the end of the
+file and returns the messages as a array reference.
 
 =head2 validate
 
@@ -219,7 +221,6 @@ sub new {
     # read-until-nonindent
     $self->{multiline_status} = "find-start";
     $self->{is_tns_multiline} = 0;
-
     # we keep the real lastpos internally until whole multiline block is read
     # than we post it to $self->{lastpos}
     $self->{multiline_lastpos} = 0;
@@ -368,28 +369,143 @@ sub check_logfile {
 
     return 1;
 }
- 
+# Determine the sequence inside TNS message
+# 10.%NI%
+# 20. %VERSION INFORMATION%
+# 30. %Time:%
+# 40. %Tracing%
+# 50. %Tns error struct%
+# 60 (optional) nr err code: W
+# 70 (optional if W>0) TNS-W
+# 80. %ns main err code:% X
+# 90  %TNS-X"
+# 100. ns secondary err code
+# 110. nt main err code: Y
+# 120. (optional if y>0) TNS-Y
+# 130. nt secondary err code
+# 140. nt OS err code
+# 150. (optional) Client address:
+sub get_tns_message_state {
+    my ($self, $line, $tns_active_error_type, $tns_active_error_no) = @_;
+	
+	my $current_line_state = -1;
+	my $current_tns_active_error_no = undef;
+	my $current_tns_active_error_type = undef;
+
+	if ( $line =~ /^\s*(NI|Fatal NI)/) { $current_line_state = 10; }
+	elsif ( $line =~ /^\s*VERSION INFORMATION/) { $current_line_state = 20; }
+	elsif ( $line =~ /^\s*Time/) { $current_line_state = 30; }
+	elsif ( $line =~ /^\s*Tracing/) { $current_line_state = 40; }
+	elsif ( $line =~ /^\s*Tns error struct/) { $current_line_state = 50; }
+	elsif ( $line =~ /^\s*nr err code/) { $current_line_state = 60; $current_tns_active_error_type = "nr"; $current_tns_active_error_no = sprintf("%05d", ( split ' ', $line )[ -1 ]); }
+	elsif ($tns_active_error_no and $tns_active_error_type eq "nr" and $line =~ /^\s*TNS-$tns_active_error_no/) { $current_line_state = 70; }
+	elsif ( $line =~ /^\s*ns main err code/) { $current_line_state = 80; $current_tns_active_error_type = "ns"; $current_tns_active_error_no = sprintf("%05d", ( split ' ', $line )[ -1 ]); }
+	elsif ($tns_active_error_no and $tns_active_error_type eq "ns" and $line =~ /^\s*TNS-$tns_active_error_no/) { $current_line_state = 90; }
+	elsif ( $line =~ /^\s*ns secondary err code/) { $current_line_state = 100; }
+	elsif ( $line =~ /^\s*nt main err code/) { $current_line_state = 110; $current_tns_active_error_type = "nt"; $current_tns_active_error_no = sprintf("%05d", ( split ' ', $line )[ -1 ]); }
+	elsif ($tns_active_error_no and $tns_active_error_type eq "nt" and $line=~ /^\s*TNS-$tns_active_error_no/) { $current_line_state = 120; }
+	elsif ( $line =~ /^\s*nt secondary err code/) { $current_line_state = 130; }
+	elsif ( $line =~ /^\s*nt (OS|os) err code/) { $current_line_state = 140; }
+	elsif ( $line =~ /^\s*Client address/) { $current_line_state = 150; }
+	elsif ( $line =~ /^\s*\*{71}/ ) { $current_line_state = 0; }
+	elsif ( $line =~ /^TNS.*/) { $current_line_state = -1; } # it is a TNS line but the order is incorrect, usually during backlog parsing
+    else { $self->log->warn("Unexpected input to get_tns_message_state:" . $line); }
+
+	return ($current_line_state, $current_tns_active_error_type, $current_tns_active_error_no);
+}
+
+sub process_tns_multiline_backlog {
+
+	my ($self, $backlog) = @_;
+
+	# empty backlog, nothing to do
+    if (scalar @{$backlog} == 0) {
+    	return undef;
+    }
+
+	my $tns_multiline_state = 0; # holds current state of tns multiline message completeness
+   	my $tns_active_error_type = $self->{tns_active_error_type}; # eg. ns, nr, ...
+   	my $tns_active_error_no = $self->{tns_active_error_no}; # holds active error no eg. ns main err code: ---> 12535 <---
+    my $tns_multiline_buffer;
+
+	$tns_multiline_buffer = $backlog->[0];
+	delete $backlog->[0];	
+	
+    if ($tns_multiline_buffer->{"line"} =~ /^\s*\*{71}/ ) {		
+    	$tns_multiline_buffer->{"ora.type"} = "TNS";
+    }
+    else {
+    	$self->log->debug("Backlog not starting with TNS start *******");
+
+    	# loop until correct backlog start is found and return as ora.type="TNS mess"
+    	$tns_multiline_buffer->{"ora.type"} = "TNS mess";
+		for my $i (1 .. scalar @{$backlog} - 1)				
+		{
+			my $current_msg = $backlog->[$i];
+		    if ($current_msg->{"line"} =~ /^\s*\*{71}/ ) {		
+				return $tns_multiline_buffer;	
+    		}
+    		else {
+            	$tns_multiline_buffer->{"line"} .= "\n".$current_msg->{"line"};
+            	delete $backlog->[$i];
+    		}			
+		}
+    	
+    	return $tns_multiline_buffer;
+    }
+			
+	for my $i (1 .. scalar @{$backlog} - 1)				
+	{
+		my $current_msg = $backlog->[$i];
+
+		my ($current_line_state, $current_tns_active_error_type, $current_tns_active_error_no) = $self->get_tns_message_state($current_msg->{"line"}, $tns_active_error_type, $tns_active_error_no );						
+		if ($current_line_state > $tns_multiline_state) {
+            $tns_multiline_buffer->{"line"} .= "\n".$current_msg->{"line"};
+            delete $backlog->[$i];
+            # update TNS multiline state
+            $tns_multiline_state = $current_line_state;
+            $tns_active_error_type = $current_tns_active_error_type;
+            $tns_active_error_no = $current_tns_active_error_no;
+        }		
+	}	
+	
+	# just compact the array to remove deleted entries
+	# not an optimal solution but this situations are rare so we don't
+	# have to look for perfection
+	@{$backlog} = map { exists $backlog->[$_] ? $backlog->[$_] : () } 0 .. $#{$backlog} ;	
+
+	return $tns_multiline_buffer;
+}
+
 sub pull {
     my ($self, %opts) = @_;
 
     local $SIG{PIPE} = "IGNORE";
 
-    my $max_multiline_blocks = $opts{lines} || 1;
+    # instead of number of lines we set limit to max number of multiline blocks 
+    my $max_multiline_blocks = $opts{lines} || 1;  
     my $lines = [ ];
     my $fhpos = $self->{fhpos};
     my $fhlog = $self->open_logfile or return undef;
         	
 	my $lastpos = $self->{lastpos};
-#	my $multiline_lastpos = $self->{multiline_lastpos};
 	my $multiline_lastreadtime = $self->{multiline_lastreadtime};
 	my $multiline_status = $self->{multiline_status};
 	my $multiline_buffer = $self->{multiline_buffer};
 	my $is_tns_multiline = $self->{is_tns_multiline};
 	my $tns_multiline_buffer = $self->{tns_multiline_buffer};
-	
+
+    # TNS messages tend to get logged in incorrect order
+	# We use some state logic to detect and avoid tns order mess
+	my $tns_multiline_state = $self->{tns_multiline_state}; # holds current state of tns multiline message completeness
+    my $tns_active_error_type = $self->{tns_active_error_type}; # eg. ns, nr, ...
+    my $tns_active_error_no = $self->{tns_active_error_no}; # holds active error no eg. ns main err code: ---> 12535 <---
+    my $tns_order_mess = $self->{tns_order_mess}; # 0=no mess, 1=one TNS message mess, 2=two TNS messages ....
+	my $tns_multiline_backlog = $self->{tns_multiline_backlog}; # holds skipped lines due to incorrect order on source
 	my $got_new_lines = 0;
+	
     while (my $line = <$fhlog>) { 
-#    	$multiline_lastpos = tell ($fhlog);
+
     	$multiline_lastreadtime = Time::HiRes::gettimeofday() unless defined $multiline_lastreadtime;
         $got_new_lines = 1;
 
@@ -404,7 +520,6 @@ sub pull {
         #</txt>
         #</msg>
         
-#        $self->log->debug("new line read: $self->{multiline_status}") unless $self->{is_tns_multiline};
         		# search until prefix is matched than start with new multiline block
         		# drop non matching lines until next <msg.* is found
         		if ($multiline_status eq "find-start") {
@@ -421,61 +536,133 @@ sub pull {
         		# use index or substr instead of regex because it is twice as fast
 				#if ($line =~ /<\/msg>/) {
 				if (index($line,"<\/msg>") == 0) {
+
 					$multiline_buffer .= "\n$line";
 					my %msg = %{$self->convert_xmlalert_to_hash($multiline_buffer)};
-					$msg{"offset"} = $lastpos + 1;
-					if (!$is_tns_multiline) {
+					$msg{"offset"} = $lastpos + 1; # set offset start of the multiline message 					
+
+					if ( $msg{"line"} eq "" ) {
+						# do nothing, skip empty messages
+					}
+					elsif (!$is_tns_multiline) {
 						# start of tns multiline
 						if ( $msg{"line"} =~ /^\s*\*{71}/ ) {		
-#							$self->log->debug("Start of a new tns multiline");				    
-							$is_tns_multiline = 1;
+							$self->log->debug("Start of a new tns multiline");	
+							$is_tns_multiline = 1; 
+                            $tns_order_mess = 0;
+							
+							# reset TNS multiline state
+							$tns_multiline_state = 0; $tns_active_error_type = undef; $tns_active_error_no = undef;
+
 							$msg{"ora.type"} = "TNS";
 							$tns_multiline_buffer = \%msg;
 						} 
 						# plain simple alert log line
-						else {					
-							#$self->log->debug(encode_json \%msg);
+						else {										
 							if ($self->check_event($msg{"line"})) {
 								push @$lines, \%msg;
+								$max_multiline_blocks--;
 							}
 						}
 					# continuation of tns multiline	
-					} else {
+					} else { 
+                        
 						# another tns multiline following
 						if ( $msg{"line"} =~ /^\s*\*{71}/ ) {	
-#						 	$self->log->debug("Start of another tns multiline");
-							if ($self->check_event($tns_multiline_buffer->{"line"})) {
-								push @$lines, $tns_multiline_buffer;
-							}
-							$msg{"ora.type"} = "TNS";
-							$tns_multiline_buffer = \%msg;
+                            if ($tns_multiline_state >= 140 and not $tns_order_mess) {						
+						 		$self->log->debug("Start of another tns multiline");
+						 		
+						 		# reset TNS multiline state
+						 		$tns_multiline_state = 0; $tns_active_error_type = undef; $tns_active_error_no = undef;
+						 		
+								if ($self->check_event($tns_multiline_buffer->{"line"})) {
+									push @$lines, $tns_multiline_buffer;
+									$max_multiline_blocks--;
+								}						 	
+								$msg{"ora.type"} = "TNS";
+								$tns_multiline_buffer = \%msg;
+							}	
+                        	# hm, we have hit tns order mess, put current event into the backlog
+                            else {
+                            	$self->log->debug("TNS order mess ++");
+                            	
+                            	$tns_order_mess++;
+                                push @$tns_multiline_backlog, \%msg;
+                            }							
 						}
 						# continuation of the same tns message
-						elsif ( $msg{"line"} =~ /^\s.*|^$|^TNS.*|^Fatal NI connect error.*/ ) {
-#							$self->log->debug("Continuation of tns multiline");
-#							$self->log->debug($msg{"message"}	);
-							$tns_multiline_buffer->{"line"} .= "\n".$msg{"line"};
-						}
+						elsif ( $msg{"line"} =~ /^\s.*|^TNS.*|^Fatal NI connect error.*/) 
+						{
+							my ($current_line_state, $current_tns_active_error_type, $current_tns_active_error_no) = $self->get_tns_message_state($msg{"line"}, $tns_active_error_type, $tns_active_error_no );
+
+							if ($current_line_state > $tns_multiline_state) {
+                               	$tns_multiline_buffer->{"line"} .= "\n".$msg{"line"};
+                               	# update TNS multiline state
+                               	$tns_multiline_state = $current_line_state;
+                        		$tns_active_error_type = $current_tns_active_error_type;
+                        		$tns_active_error_no = $current_tns_active_error_no;
+                            }
+							else 
+							{
+								if ( $tns_order_mess ) { push @$tns_multiline_backlog, \%msg; }
+								else {
+									$self->log->warn("Incorrect TNS message order without TNS mess");	
+									$tns_multiline_buffer->{"ora.type"}	= "TNS mess";						
+									$tns_multiline_buffer->{"line"} .= "\n".$msg{"line"};
+								}
+							}
+                        }
+
 						# end of tns multiline	
 						else {
-#							$self->log->debug("End of tns multiline");
-							$is_tns_multiline = 0;
+							$self->log->debug("End of tns multiline");
+
+							# push current tns multiline to output
 							if ($self->check_event($tns_multiline_buffer->{"line"})) {
 								push @$lines, $tns_multiline_buffer;
-							}								
-						}
+								$max_multiline_blocks--;
+							}	
+							
+							# process_tns_multiline_backlog
+							if ($tns_order_mess) {
+								$self->log->debug("Process TNS multiline backlog of " . scalar @{$tns_multiline_backlog} . " line(s)");	
+								$self->log->debug("Expecting " . $tns_order_mess . " TNS message(s)");		
+								while (my $x = $self->process_tns_multiline_backlog($tns_multiline_backlog)) {
+									push @$lines, $x;
+									$tns_order_mess--;
+									$max_multiline_blocks--;
+								}											
+
+								if ($tns_order_mess != 0) {
+									$self->log->warn("Incorrect number of TNS messages in TNS multiline backlog");
+								}
+								$self->log->debug("Done processing TNS multiline backlog");
+																						
+								# push new message after tns multiline to output
+								if ($self->check_event($msg{"line"})) {
+									push @$lines, \%msg;
+									$max_multiline_blocks--;
+								}								
+							}
+							
+							$tns_multiline_backlog = undef;
+							$tns_order_mess = 0;							
+							$is_tns_multiline = 0;						
+        				}
+        			}
 						
-					}
-        			$multiline_buffer = "";
-        			$multiline_status = "find-start";
-        			$lastpos = tell ($fhlog);
-        		} else {
-        			$multiline_buffer .= "\n$line";
-        			next;        			
-        		}               		
+       				$multiline_buffer = "";
+       				$multiline_status = "find-start";
+       				$lastpos = tell ($fhlog); # we set lastpos variable after previous message has been completed
+       				
+        	} else {
+        		$multiline_buffer .= "\n$line";
+        		next;        			
+        	}               		
 
     	    #$self->log->debug("read", length($line), "bytes from file");
- 	       last unless --$max_multiline_blocks;
+			# exit loop when max blocks have been read
+ 	        last unless $max_multiline_blocks;
     	}
 
 	$multiline_lastreadtime = Time::HiRes::gettimeofday() if $got_new_lines;
@@ -497,6 +684,7 @@ sub pull {
 			if ($self->check_event($tns_multiline_buffer->{"line"})) {
 				push @$lines, $tns_multiline_buffer;
 			}
+			# TODO: process backlog if it exists				
 		}
 
     	$multiline_buffer = undef;
@@ -505,8 +693,12 @@ sub pull {
     	$lastpos = tell ($fhlog);   
     	$multiline_lastreadtime = undef; 
     	$is_tns_multiline = 0;
+		$tns_multiline_backlog = undef;
+		$tns_order_mess = 0;
     }
-	
+
+
+	# write current position to file so we can continue after retart
     if ($self->{fhpos}) {
         seek($fhpos, 0, 0);
         printf $fhpos "%014d:%014d", $self->{inode}, $lastpos;
@@ -515,18 +707,20 @@ sub pull {
     # If EOF is reached then the logfile should be
     # checked if the file was rotated.
     if ($max_multiline_blocks > 0) {
-#        $self->log->debug("reached end of file");
         $self->{reached_end_of_file}++;
     }
 
     $self->{lastpos} = $lastpos;
-#	$self->{multiline_lastpos} = $multiline_lastpos;
 	$self->{multiline_lastreadtime} = $multiline_lastreadtime;
 	$self->{multiline_status} = $multiline_status;
 	$self->{multiline_buffer} = $multiline_buffer;
 	$self->{is_tns_multiline} = $is_tns_multiline; 
 	$self->{tns_multiline_buffer} = $tns_multiline_buffer;
-
+    $self->{tns_multiline_state} = $tns_multiline_state;
+    $self->{tns_active_error_type} = $tns_active_error_type;
+    $self->{tns_active_error_no} = $tns_active_error_no;
+    $self->{tns_multiline_backlog} = $tns_multiline_backlog;
+    $self->{tns_order_mess} = $tns_order_mess;
 
     return $lines;
 }
@@ -613,8 +807,28 @@ sub convert_xmlalert_to_hash {
 	my $txt_start = index ($msg, '<txt>') + 5;
 	my $txt_end = index ($msg, '</txt>') - 1;
 
+	# Attributes can be embedded in msg tag
+	# Also standalone attributes are sometimes included
+	#
+	# <msg time='2016-12-06T09:39:43.193+01:00' org_id='oracle' comp_id='rdbms'
+	# msg_id='1108830330' type='INCIDENT_ERROR' group='Generic Internal Error'
+	# level='1' host_id='test.example.com' host_addr='10.1.1.2'
+	# prob_key='ORA 600 [17285]' errid='61827' detail_path='/u01/app/oracle/diag/rdbms/orcl/ORCL/trace/ORCL_ora_6453.trc'>
+	# <attr name='IMPACT' value='PROCESS FAILURE'/>
+	# <txt>Errors in file /u01/app/oracle/diag/rdbms/orcl/ORCL/trace/ORCL_ora_6453.trc  (incident=61827):
+	#ORA-00600: internal error code, arguments: [17285], [0x7FC35BE25310], [1], [0x2FB755BB8], [], [], [], [], [], [], [], []
+	# </txt>
+	#</msg>
+	my $standalone_attr_start = index ($msg, '<attr');
+
+	# identify position of attributes inside of <msg> tag
 	my $attr_start = $msg_start + 5;
-	my $attr_end = rindex ($msg, ">", $txt_start - 5) - 1;
+	my $attr_end;
+	if ($standalone_attr_start == -1) {
+		$attr_end = rindex ($msg, ">", $txt_start - 5) - 1;
+	} else {
+		$attr_end = rindex ($msg, ">", $standalone_attr_start) - 1;
+	}
 
 	# extract attributes of <msg> tag
 	# we get something like this
@@ -629,8 +843,12 @@ sub convert_xmlalert_to_hash {
 	# module='
 	# pid='19562
 #	my @attrs = split(/'\s+>?/, substr($msg, $attr_start, $attr_end - $attr_start ));
+
+
+
+
     my %alertlog_json = map { (split /='/, "ora.".$_, -1) } split /'\s+>?/, substr($msg, $attr_start, $attr_end - $attr_start );
-	
+
 	# construct hash with all the attribute elements 
 	# split attrs to extrace key and value
 	# prefix ora. is added to avoid conflict for eg. type
@@ -649,7 +867,20 @@ sub convert_xmlalert_to_hash {
  	
     # add text field, decode HTML entities on the fly
     $alertlog_json{"line"} = decode_entities(rtrim(substr($msg, $txt_start, $txt_end - $txt_start +1 )));
-		
+    
+    # add standalone attributes
+    # <attr name='IMPACT' value='PROCESS FAILURE'/>
+    # <attr name='IMPACT' value='POSSIBLE INSTANCE FAILURE'/>
+    if ($standalone_attr_start >= 0) {
+    	my $standalone_attr_end_of_name = index ($msg, '\' value=', $standalone_attr_start + 12);
+    	my $standalone_attr_end = index ($msg, '\'/>', $standalone_attr_start);
+
+    	my $standalone_attr_name  = substr($msg, $standalone_attr_start + 12, $standalone_attr_end_of_name - $standalone_attr_start - 12 );
+    	my $standalone_attr_value = substr($msg, $standalone_attr_end_of_name + 9, $standalone_attr_end - $standalone_attr_end_of_name - 9 );
+    	
+    	$alertlog_json{$standalone_attr_name} = $standalone_attr_value;
+    }
+	
 	return \%alertlog_json;
 }
 
