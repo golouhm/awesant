@@ -821,7 +821,7 @@ sub prepare_message {
             	
             }
 
-            foreach my $key (%{$input->{add_field}}) {
+            foreach my $key (keys %{$input->{add_field}}) {
                 $event->{$key} = $input->{add_field}->{$key};
             }
     
