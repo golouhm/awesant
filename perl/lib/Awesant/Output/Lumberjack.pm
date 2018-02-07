@@ -385,6 +385,14 @@ sub push {
       		$response = undef;
       		while (!defined $response ) {
       			$response = $self->readACK();
+      			# sometimes response is returned in two SSL frames so we have 
+      			# to do another read
+      			if (length($response) > 0 && length($response)<6) {
+      			    for (my $i = 0; $i < 5; $i++) {
+      					$response .= $self->readACK();
+      					if (length($response) == 6) { last; }
+      				}
+      			} 
       		}
       
     		if (length($response) == 6) {
@@ -397,7 +405,8 @@ sub push {
 				$self->log->error("Pipeline stalled on server $self->{host}:$self->{port}");
 				return undef;
 			} else {
-            	$self->log->error("Incorrect response length from server $self->{host}:$self->{port}: " . length($response) . ". Expecting length 6 bytes.");
+            	$self->log->error("Incorrect response length " . length($response) . " from server $self->{host}:$self->{port}. Expecting length 6 bytes.");
+            	$self->disconnect();
         		return undef;
     		}
 
